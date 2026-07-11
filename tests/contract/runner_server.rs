@@ -1,6 +1,6 @@
 use cockpit_runner::{
     ipc::proto::{IPC_VERSION, RunnerCommand, RunnerRequest},
-    server::serve_listener,
+    server::{MAX_IPC_REQUEST_BYTES, serve_listener},
 };
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -26,6 +26,38 @@ async fn call(
         .expect("response reads")
         .expect("response exists");
     serde_json::from_str(&line).expect("response parses")
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn loopback_server_rejects_oversized_request_frames() {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("listener binds");
+    let address = listener.local_addr().expect("address exists");
+    let server = tokio::spawn(serve_listener(listener, "server-test-token"));
+    let stream = TcpStream::connect(address).await.expect("connection");
+    let (read, mut write) = stream.into_split();
+    let mut payload = vec![b'x'; MAX_IPC_REQUEST_BYTES + 1];
+    payload.push(b'\n');
+    write
+        .write_all(&payload)
+        .await
+        .expect("oversized request writes");
+    let mut lines = BufReader::new(read).lines();
+    let line = lines
+        .next_line()
+        .await
+        .expect("response reads")
+        .expect("response exists");
+    let response: Value = serde_json::from_str(&line).expect("response parses");
+    assert_eq!(
+        response
+            .get("error")
+            .and_then(|error| error.get("code"))
+            .and_then(Value::as_str),
+        Some("PAYLOAD_TOO_LARGE")
+    );
+    server.abort();
 }
 
 #[tokio::test(flavor = "current_thread")]

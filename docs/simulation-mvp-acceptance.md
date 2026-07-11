@@ -33,6 +33,7 @@ Status: in progress. This report records the verified local vertical slice; it d
 - Recording headers persist runtime contract, world-model, application, plugin, scenario, seed, and clock compatibility data.
 - Recording payloads redact nested API keys, tokens, prompts, passwords, secrets, and hidden-reasoning fields before content-addressed files are written.
 - Runner IPC validates protocol version and session token, emits tagged events, and supports cursor reads.
+- Loopback IPC rejects newline-delimited requests larger than 1 MiB with structured `PAYLOAD_TOO_LARGE`, without truncating input.
 - Loopback runner server preserves handler state across a client disconnect and cursor-based reconnect.
 - Tauri command host compiles and React/Vite typecheck and production build pass.
 - iota-core ACP adapter compiles, applies the configured timeout/fallback policy, and prompt contract tests exclude Ground Truth fields.
