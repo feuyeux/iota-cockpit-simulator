@@ -29,6 +29,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "time", "sync", "net", "io-util"] }
 thiserror = "2"
@@ -54,6 +55,7 @@ cockpit-plugin.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 tokio.workspace = true
+uuid.workspace = true
 
 [[test]]
 name = "smoke_replay"
@@ -90,6 +92,10 @@ path = "tests/contract/plugin_host.rs"
 [[test]]
 name = "multi_agent"
 path = "tests/contract/multi_agent.rs"
+
+[[test]]
+name = "payload_store"
+path = "tests/contract/payload_store.rs"
 
 [[test]]
 name = "rule_agent_smoke"

@@ -1,7 +1,69 @@
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
+
 use rusqlite::{Connection, OptionalExtension, params};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 use crate::Recording;
+
+#[derive(Debug, Clone)]
+pub struct PayloadStore {
+    root: PathBuf,
+}
+
+impl PayloadStore {
+    pub fn new(root: impl Into<PathBuf>) -> Result<Self, RecordingStoreError> {
+        let store = Self { root: root.into() };
+        fs::create_dir_all(&store.root)
+            .map_err(|error| RecordingStoreError::Io(error.to_string()))?;
+        Ok(store)
+    }
+
+    pub fn put(&self, payload: &[u8]) -> Result<String, RecordingStoreError> {
+        let hash = hash_payload(payload);
+        let path = self.path_for(&hash);
+        if path.exists() {
+            return Ok(hash);
+        }
+        fs::create_dir_all(path.parent().expect("payload parent"))
+            .map_err(|error| RecordingStoreError::Io(error.to_string()))?;
+        let temp = path.with_extension("tmp");
+        let mut file =
+            fs::File::create(&temp).map_err(|error| RecordingStoreError::Io(error.to_string()))?;
+        file.write_all(payload)
+            .map_err(|error| RecordingStoreError::Io(error.to_string()))?;
+        file.sync_all()
+            .map_err(|error| RecordingStoreError::Io(error.to_string()))?;
+        fs::rename(temp, path).map_err(|error| RecordingStoreError::Io(error.to_string()))?;
+        Ok(hash)
+    }
+
+    pub fn get(&self, hash: &str) -> Result<Vec<u8>, RecordingStoreError> {
+        let bytes = fs::read(self.path_for(hash))
+            .map_err(|error| RecordingStoreError::Io(error.to_string()))?;
+        if hash_payload(&bytes) != hash {
+            return Err(RecordingStoreError::PayloadHashMismatch(hash.to_string()));
+        }
+        Ok(bytes)
+    }
+
+    pub fn path_for(&self, hash: &str) -> PathBuf {
+        let digest = hash.strip_prefix("sha256:").unwrap_or(hash);
+        self.root
+            .join(digest.get(..2).unwrap_or("00"))
+            .join(format!("{digest}.json"))
+    }
+}
+
+fn hash_payload(payload: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(payload);
+    format!("sha256:{:x}", hasher.finalize())
+}
 
 #[derive(Debug, Error)]
 pub enum RecordingStoreError {
@@ -11,23 +73,38 @@ pub enum RecordingStoreError {
     Serialization(#[from] serde_json::Error),
     #[error("recording '{0}' was not found")]
     NotFound(String),
+    #[error("recording I/O error: {0}")]
+    Io(String),
+    #[error("payload hash mismatch: {0}")]
+    PayloadHashMismatch(String),
 }
 
 pub struct RecordingStore {
     connection: Connection,
+    payloads: PayloadStore,
 }
 
 impl RecordingStore {
     pub fn open(path: &str) -> Result<Self, RecordingStoreError> {
         let connection = Connection::open(path)?;
-        let mut store = Self { connection };
+        let payloads = PayloadStore::new(Path::new(path).with_extension("payloads"))?;
+        let mut store = Self {
+            connection,
+            payloads,
+        };
         store.initialize()?;
         Ok(store)
     }
 
     pub fn in_memory() -> Result<Self, RecordingStoreError> {
         let connection = Connection::open_in_memory()?;
-        let mut store = Self { connection };
+        let payloads = PayloadStore::new(
+            std::env::temp_dir().join(format!("cockpit-recording-{}", uuid::Uuid::new_v4())),
+        )?;
+        let mut store = Self {
+            connection,
+            payloads,
+        };
         store.initialize()?;
         Ok(store)
     }
@@ -54,13 +131,16 @@ impl RecordingStore {
             params![recording.run_id],
         )?;
         for tick in &recording.ticks {
+            let payload = serde_json::to_vec(tick)?;
+            let payload_hash = self.payloads.put(&payload)?;
             transaction.execute(
-                "INSERT INTO recording_ticks (run_id, tick, snapshot_hash, payload_json) VALUES (?1, ?2, ?3, ?4)",
+                "INSERT INTO recording_ticks (run_id, tick, snapshot_hash, payload_hash, payload_size) VALUES (?1, ?2, ?3, ?4, ?5)",
                 params![
                     recording.run_id,
                     tick.tick,
                     tick.snapshot_hash,
-                    serde_json::to_string(tick)?
+                    payload_hash,
+                    payload.len()
                 ],
             )?;
         }
@@ -92,12 +172,12 @@ impl RecordingStore {
             .ok_or_else(|| RecordingStoreError::NotFound(run_id.to_string()))?;
 
         let mut statement = self.connection.prepare(
-            "SELECT payload_json FROM recording_ticks WHERE run_id = ?1 ORDER BY tick ASC",
+            "SELECT payload_hash FROM recording_ticks WHERE run_id = ?1 ORDER BY tick ASC",
         )?;
         let ticks = statement
             .query_map(params![run_id], |row| row.get::<_, String>(0))?
             .map(|payload| -> Result<_, RecordingStoreError> {
-                Ok(serde_json::from_str(&payload?)?)
+                Ok(serde_json::from_slice(&self.payloads.get(&payload?)?)?)
             })
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -135,7 +215,8 @@ impl RecordingStore {
                 run_id TEXT NOT NULL REFERENCES recordings(run_id) ON DELETE CASCADE,
                 tick INTEGER NOT NULL,
                 snapshot_hash TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
+                payload_hash TEXT NOT NULL,
+                payload_size INTEGER NOT NULL,
                 PRIMARY KEY(run_id, tick)
              );
              CREATE INDEX IF NOT EXISTS recording_ticks_by_hash

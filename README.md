@@ -19,6 +19,7 @@ This repository currently implements the Phase 0 slice, the Phase 1 local agent/
 - Side-effecting MCP requests can be held as `pendingApproval` and controlled through `ApproveAction`, `RejectAction`, and `CancelAgentTurn` IPC commands.
 - `cockpit-plugin` validates manifest hash/API/permissions and gates candidate StateDiffs by entity, component path, state version, and value range.
 - Multiple scenario agent grants are supported; `MultiAgentCoordinator` applies stable priority/agent ordering and rejects duplicate target commands deterministically.
+- Recording payloads are content-addressed SHA-256 files with SQLite storing only payload hashes and sizes.
 - `apps/cockpit-desktop` is an independent React 19 + Vite 7 + TypeScript + Tailwind 4 + Lucide app with a Tauri 2 host, typed runner state, controls, world, timeline, trace, and evaluation panels.
 
 The iota-core dependency is pinned to git revision `4d8a72a0af4a156437f7a23cfacbb059f0ee62e3`, with `default-features = false`; it is used only by `cockpit-agent-runtime`. The adapter is compile-tested and prompt-isolation tested; external backend startup remains opt-in and is not required for deterministic runs.

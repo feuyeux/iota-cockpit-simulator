@@ -14,7 +14,7 @@ pub mod replay;
 pub mod store;
 
 pub use replay::replay_recording;
-pub use store::{RecordingStore, RecordingStoreError};
+pub use store::{PayloadStore, RecordingStore, RecordingStoreError};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
