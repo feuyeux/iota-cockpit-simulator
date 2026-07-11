@@ -88,5 +88,9 @@ name = "plugin_host"
 path = "tests/contract/plugin_host.rs"
 
 [[test]]
+name = "multi_agent"
+path = "tests/contract/multi_agent.rs"
+
+[[test]]
 name = "rule_agent_smoke"
 path = "tests/integration/rule_agent_smoke.rs"

@@ -35,6 +35,8 @@ pub struct SimulationScenario {
     pub alarm: AlarmState,
     pub faults: Vec<Fault>,
     pub agent: AgentGrant,
+    #[serde(default)]
+    pub agents: Vec<AgentGrant>,
     pub shutdown_deadline_ticks: u64,
 }
 
@@ -93,7 +95,11 @@ impl Simulation {
     }
 
     pub fn observation(&self) -> Observation {
-        Observation::from_snapshot(self.run_id(), &self.scenario.agent.agent_id, &self.snapshot)
+        self.observation_for_agent(&self.scenario.agent.agent_id)
+    }
+
+    pub fn observation_for_agent(&self, agent_id: &str) -> Observation {
+        Observation::from_snapshot(self.run_id(), agent_id, &self.snapshot)
     }
 
     pub fn start(&mut self) -> SimulationResult<()> {
@@ -167,31 +173,42 @@ impl Simulation {
     }
 
     fn validate_action(&mut self, request: &ActionRequest) -> ActionResult {
-        let error_code = if !self
-            .scenario
-            .agent
-            .allows(&request.agent_id, &request.command)
-        {
-            Some(ErrorCode::CapabilityDenied)
-        } else if request.expires_at_tick < self.snapshot.tick {
-            Some(ErrorCode::ActionExpired)
-        } else if request.expected_state_version != self.snapshot.version {
-            Some(ErrorCode::VersionMismatch)
+        let authorized = if self.scenario.agents.is_empty() {
+            self.scenario
+                .agent
+                .allows(&request.agent_id, &request.command)
         } else {
-            match (&request.command, request.target.as_str()) {
-                (Command::EngineShutdown, "engine-1") => {
-                    if self.snapshot.engine.power_state != "powered" {
-                        Some(ErrorCode::DeviceUnpowered)
-                    } else if self.snapshot.engine.shutdown {
-                        Some(ErrorCode::PreconditionFailed)
-                    } else {
-                        None
-                    }
-                }
-                (Command::AlarmActivate, "alarm-1") => None,
-                _ => Some(ErrorCode::UnknownTarget),
-            }
+            self.scenario
+                .agents
+                .iter()
+                .any(|agent| agent.allows(&request.agent_id, &request.command))
         };
+        let error_code =
+            if !authorized {
+                Some(ErrorCode::CapabilityDenied)
+            } else if request.expires_at_tick < self.snapshot.tick {
+                Some(ErrorCode::ActionExpired)
+            } else if request.expected_state_version != self.snapshot.version {
+                Some(ErrorCode::VersionMismatch)
+            } else if self.pending_actions.iter().any(|pending| {
+                pending.target == request.target && pending.command == request.command
+            }) {
+                Some(ErrorCode::ActionConflict)
+            } else {
+                match (&request.command, request.target.as_str()) {
+                    (Command::EngineShutdown, "engine-1") => {
+                        if self.snapshot.engine.power_state != "powered" {
+                            Some(ErrorCode::DeviceUnpowered)
+                        } else if self.snapshot.engine.shutdown {
+                            Some(ErrorCode::PreconditionFailed)
+                        } else {
+                            None
+                        }
+                    }
+                    (Command::AlarmActivate, "alarm-1") => None,
+                    _ => Some(ErrorCode::UnknownTarget),
+                }
+            };
 
         let status = if error_code.is_some() {
             ActionStatus::Rejected

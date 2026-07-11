@@ -134,6 +134,14 @@ pub fn parse_scenario_bytes(bytes: &[u8]) -> SimulationResult<SimulationScenario
             agent_id: agent.id.clone(),
             capabilities: agent.capabilities.clone(),
         },
+        agents: document
+            .agents
+            .into_iter()
+            .map(|agent| AgentGrant {
+                agent_id: agent.id,
+                capabilities: agent.capabilities,
+            })
+            .collect(),
         shutdown_deadline_ticks,
     })
 }

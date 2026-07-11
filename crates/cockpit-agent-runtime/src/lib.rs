@@ -12,9 +12,11 @@ use serde_json::{Value, json};
 
 pub mod acp_adapter;
 pub mod iota_core_adapter;
+pub mod multi_agent;
 pub mod policy;
 pub mod skill;
 
+pub use multi_agent::{AgentActionBatch, MultiAgentCoordinator};
 pub use policy::{AgentRuntimePolicy, AgentTurn, FallbackPolicy, TurnDisposition};
 
 pub const TOOL_GET_OBSERVATION: &str = "simulation.get_observation";

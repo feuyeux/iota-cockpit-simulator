@@ -101,6 +101,7 @@ fn rejects_unknown_agent_before_action_gateway() {
 fn rejected_action_is_published_as_a_stable_event() {
     let mut scenario = load_scenario("scenarios/smoke-in-cockpit.yaml").expect("scenario loads");
     scenario.agent.capabilities = vec!["engine.shutdown".to_string()];
+    scenario.agents.clear();
     let mut simulation = Simulation::new("rejection-run", scenario);
     simulation.start().expect("run starts");
     let mut server = LocalMcpServer::default();
