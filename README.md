@@ -8,13 +8,15 @@ The complete product, architecture, interaction model, implementation plan, and 
 
 ## Current implementation
 
-This repository currently implements the Phase 0 deterministic smoke-scenario slice and a desktop UI shell:
+This repository currently implements the Phase 0 slice, the Phase 1 local agent/runtime boundary, and the Phase 2 Tauri host:
 
-- Rust workspace with pure simulation core, scenario loading, recording/replay, evaluation, and `cockpit-runner`.
+- Rust workspace with pure simulation core, scenario loading, SQLite recording/replay, evaluation, `cockpit-agent-runtime`, and `cockpit-runner`.
 - `scenarios/smoke-in-cockpit.yaml` drives smoke detection, a scripted shutdown action, recording, replay, and evaluation.
-- `apps/cockpit-desktop` is an independent React 19 + Vite 7 + TypeScript + Tailwind 4 + Lucide app with typed runner state, controls, world, timeline, trace, and evaluation panels.
+- `cockpit-agent-runtime` exposes six typed simulation tools, capability enforcement, a RuleAgent, timeout/fallback policy, and an iota-core SkillRegistry adapter.
+- `cockpit-runner` exposes a versioned tagged IPC contract with session authentication and event cursors for reconnect recovery.
+- `apps/cockpit-desktop` is an independent React 19 + Vite 7 + TypeScript + Tailwind 4 + Lucide app with a Tauri 2 host, typed runner state, controls, world, timeline, trace, and evaluation panels.
 
-The iota-core ACP/MCP adapter is not wired yet because the local reference path from the plan, `D:\coding\iota-sympantos\crates\iota-core`, is not present in this workspace.
+The iota-core dependency is pinned to git revision `4d8a72a0af4a156437f7a23cfacbb059f0ee62e3`, with `default-features = false`; it is used only by `cockpit-agent-runtime`. The ACP session adapter remains a follow-up because the current vertical slice uses the deterministic RuleAgent.
 
 ## Verify
 
@@ -22,8 +24,10 @@ The iota-core ACP/MCP adapter is not wired yet because the local reference path 
 cargo fmt --all --check
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
+cargo metadata --format-version 1
 cargo run -p cockpit-runner -- validate scenarios/smoke-in-cockpit.yaml
 cargo run -p cockpit-runner -- run scenarios/smoke-in-cockpit.yaml --ticks 80
+pwsh ./tools/audit-dependencies.ps1
 cd apps/cockpit-desktop
 npm install
 npm test
@@ -38,3 +42,5 @@ npm run dev -- --host 127.0.0.1 --port 15342
 ```
 
 Open <http://127.0.0.1:15342>.
+
+For the native Tauri host, use `npm run tauri:dev`; package with `npm run tauri:build`.

@@ -1,14 +1,13 @@
 [package]
-name = "cockpit-recording"
+name = "cockpit-agent-runtime"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 publish = false
 
 [dependencies]
-cockpit-agent-runtime.workspace = true
 cockpit-simulation-core.workspace = true
-rusqlite.workspace = true
+iota-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
+tokio.workspace = true

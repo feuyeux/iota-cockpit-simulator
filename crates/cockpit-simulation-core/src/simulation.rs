@@ -6,7 +6,7 @@ use crate::{
     },
     clock::{ClockConfig, RunStatus},
     error::{SimulationError, SimulationResult},
-    event::{EventEnvelope, EventPayload},
+    event::{EventEnvelope, EventPayload, ToolCallTrace},
     sensor::Observation,
     world::{
         AlarmState, DeviceLifecycle, DeviceState, EnvironmentState, HumanState, WorldSnapshot,
@@ -46,6 +46,12 @@ pub struct StepRecord {
     pub events: Vec<EventEnvelope>,
     pub observation: Observation,
     pub action_results: Vec<ActionResult>,
+    #[serde(default)]
+    pub tool_calls: Vec<ToolCallTrace>,
+    #[serde(default)]
+    pub errors: Vec<String>,
+    #[serde(default)]
+    pub fallback: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -84,6 +90,10 @@ impl Simulation {
 
     pub fn run_id(&self) -> &str {
         &self.snapshot.run_id
+    }
+
+    pub fn observation(&self) -> Observation {
+        Observation::from_snapshot(self.run_id(), &self.scenario.agent.agent_id, &self.snapshot)
     }
 
     pub fn start(&mut self) -> SimulationResult<()> {
@@ -238,6 +248,9 @@ impl Simulation {
             events,
             observation,
             action_results,
+            tool_calls: Vec::new(),
+            errors: Vec::new(),
+            fallback: None,
         })
     }
 

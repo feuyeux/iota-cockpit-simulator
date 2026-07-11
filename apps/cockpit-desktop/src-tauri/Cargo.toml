@@ -1,0 +1,21 @@
+[package]
+name = "cockpit-desktop"
+version = "0.1.0"
+description = "Cockpit simulation desktop host"
+authors = ["Cockpit Simulation"]
+edition = "2024"
+rust-version = "1.95.0"
+publish = false
+
+[lib]
+name = "cockpit_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+cockpit-runner.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2", features = [] }

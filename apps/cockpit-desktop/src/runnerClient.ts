@@ -1,17 +1,19 @@
+import { invoke } from "@tauri-apps/api/core";
 import type { RunnerEvent, ScenarioSummary } from "./types/simulation";
 
-type TauriCore = {
-  invoke: <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
-};
+function isTauri(): boolean {
+  return "__TAURI_INTERNALS__" in window;
+}
 
-function tauriCore(): TauriCore | undefined {
-  return (window as Window & { __TAURI_INTERNALS__?: unknown; __TAURI__?: TauriCore }).__TAURI__;
+function invokeRunner<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isTauri()) return Promise.resolve(undefined as T);
+  return invoke<T>(command, args);
 }
 
 export interface RunnerClient {
   connect(): Promise<void>;
   validateScenario(path: string): Promise<ScenarioSummary>;
-  createRun(): Promise<string>;
+  createRun(path: string): Promise<string>;
   start(): Promise<void>;
   pause(): Promise<void>;
   step(): Promise<void>;
@@ -21,13 +23,10 @@ export interface RunnerClient {
 
 export const runnerClient: RunnerClient = {
   async connect() {
-    const tauri = tauriCore();
-    if (!tauri) return;
-    await tauri.invoke("connect_runner");
+    await invokeRunner<void>("connect_runner");
   },
   async validateScenario(path: string) {
-    const tauri = tauriCore();
-    if (!tauri) {
+    if (!isTauri()) {
       return {
         id: "smoke-in-cockpit",
         path,
@@ -37,28 +36,25 @@ export const runnerClient: RunnerClient = {
         agentId: "cockpit-agent"
       };
     }
-    return tauri.invoke("validate_scenario", { path });
+    return invokeRunner("validate_scenario", { path });
   },
-  async createRun() {
-    const tauri = tauriCore();
-    if (!tauri) return "preview-run";
-    return tauri.invoke("create_simulation_run");
+  async createRun(path: string) {
+    if (!isTauri()) return "preview-run";
+    return invokeRunner<string>("create_simulation_run", { path });
   },
   async start() {
-    await tauriCore()?.invoke("start_simulation");
+    await invokeRunner<void>("start_simulation");
   },
   async pause() {
-    await tauriCore()?.invoke("pause_simulation");
+    await invokeRunner<void>("pause_simulation");
   },
   async step() {
-    await tauriCore()?.invoke("step_simulation");
+    await invokeRunner<void>("step_simulation");
   },
   async stop() {
-    await tauriCore()?.invoke("stop_simulation");
+    await invokeRunner<void>("stop_simulation");
   },
   async snapshot(cursor?: number) {
-    const tauri = tauriCore();
-    if (!tauri) return [];
-    return tauri.invoke("get_simulation_events", { cursor });
+    return (await invokeRunner<RunnerEvent[]>("get_simulation_events", { cursor })) ?? [];
   }
 };

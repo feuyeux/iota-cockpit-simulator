@@ -15,9 +15,15 @@ interface Props {
 }
 
 export function SimulationRunControl({ model, dispatch }: Props) {
+  async function syncEvents() {
+    const events = await runnerClient.snapshot(model.lastCursor);
+    for (const event of events) dispatch({ type: "runnerEvent", event });
+  }
+
   async function runCommand(command: () => Promise<void>) {
     try {
       await command();
+      await syncEvents();
     } catch (error) {
       dispatch({
         type: "commandRejected",
@@ -34,8 +40,11 @@ export function SimulationRunControl({ model, dispatch }: Props) {
 
   async function loadScenario() {
     dispatch({ type: "scenarioLoading" });
-    const scenario = await runnerClient.validateScenario("scenarios/smoke-in-cockpit.yaml");
+    const path = "scenarios/smoke-in-cockpit.yaml";
+    const scenario = await runnerClient.validateScenario(path);
+    await runnerClient.createRun(path);
     dispatch({ type: "scenarioReady", scenario });
+    await syncEvents();
   }
 
   return (

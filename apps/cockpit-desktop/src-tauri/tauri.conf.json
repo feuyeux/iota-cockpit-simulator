@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Cockpit Simulation",
+  "version": "0.1.0",
+  "identifier": "com.feuyeux.cockpit-simulation",
+  "build": {
+    "beforeDevCommand": "npm run dev -- --host 127.0.0.1 --port 15342",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://127.0.0.1:15342",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Cockpit Simulation",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": []
+  }
+}

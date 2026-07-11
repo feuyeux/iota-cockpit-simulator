@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use cockpit_agent_runtime::{LocalMcpServer, RuleAgent};
 use cockpit_simulation_core::{
     ScriptedAgent,
     action::{ActionRequest, ActionStatus},
@@ -7,6 +8,12 @@ use cockpit_simulation_core::{
     simulation::{Simulation, SimulationScenario, StepRecord},
 };
 use serde::{Deserialize, Serialize};
+
+pub mod replay;
+pub mod store;
+
+pub use replay::replay_recording;
+pub use store::{RecordingStore, RecordingStoreError};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,27 +79,19 @@ pub fn run_scripted_recording(
     Ok(recording)
 }
 
-pub fn replay_recording(
+pub fn run_rule_agent_recording(
     run_id: impl Into<String>,
     scenario: SimulationScenario,
-    source: &Recording,
+    ticks: u64,
 ) -> SimulationResult<Recording> {
-    if source.scenario_hash != scenario.scenario_hash {
-        return Err(cockpit_simulation_core::SimulationError::InvalidScenario(
-            "recording scenario hash does not match scenario".to_string(),
-        ));
-    }
-
     let run_id = run_id.into();
     let mut simulation = Simulation::new(run_id.clone(), scenario.clone());
     simulation.start()?;
-    let mut replay = Recording::new(run_id, &scenario);
-    let actions_by_tick = source.recorded_actions_by_tick();
-
-    for tick in &source.ticks {
-        let actions = actions_by_tick.get(&tick.tick).cloned().unwrap_or_default();
-        let step = simulation.step_with_recorded_actions(actions)?;
-        replay.push(step);
+    let mut recording = Recording::new(run_id, &scenario);
+    let mut server = LocalMcpServer::default();
+    let mut agent = RuleAgent::default();
+    for _ in 0..ticks {
+        recording.push(agent.step(&mut simulation, &mut server)?);
     }
-    Ok(replay)
+    Ok(recording)
 }

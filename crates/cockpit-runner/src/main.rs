@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
                 .with_context(|| format!("failed to load {}", scenario.display()))?;
             let deadline = scenario.shutdown_deadline_ticks;
             let recording =
-                cockpit_recording::run_scripted_recording("runner-run-1", scenario, ticks)?;
+                cockpit_recording::run_rule_agent_recording("runner-run-1", scenario, ticks)?;
             let evaluation = cockpit_evaluation::evaluate_smoke_shutdown(&recording, deadline);
             println!(
                 "{}",
