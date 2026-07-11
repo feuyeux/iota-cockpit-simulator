@@ -29,6 +29,7 @@ Status: in progress. This report records the verified local vertical slice; it d
 - Repeated runs and replay produce the same final snapshot hash.
 - SQLite recording round-trips run metadata, ticks, hashes, observations, actions, and tool traces.
 - Recording headers persist runtime contract, world-model, application, plugin, scenario, seed, and clock compatibility data.
+- Recording payloads redact nested API keys, tokens, prompts, passwords, secrets, and hidden-reasoning fields before content-addressed files are written.
 - Runner IPC validates protocol version and session token, emits tagged events, and supports cursor reads.
 - Loopback runner server preserves handler state across a client disconnect and cursor-based reconnect.
 - Tauri command host compiles and React/Vite typecheck and production build pass.

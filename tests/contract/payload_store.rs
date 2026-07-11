@@ -6,7 +6,7 @@ use cockpit_recording::PayloadStore;
 fn content_addressed_payloads_deduplicate_and_verify_hashes() {
     let root = std::env::temp_dir().join(format!("cockpit-payload-test-{}", uuid::Uuid::new_v4()));
     let store = PayloadStore::new(&root).expect("payload store creates");
-    let payload = br#"{"secret":"not a secret-bearing payload in this fixture"}"#;
+    let payload = br#"{"state":"safe"}"#;
     let first = store.put(payload).expect("payload stores");
     let second = store.put(payload).expect("duplicate payload stores");
     assert_eq!(first, second);

@@ -98,6 +98,10 @@ name = "payload_store"
 path = "tests/contract/payload_store.rs"
 
 [[test]]
+name = "recording_redaction"
+path = "tests/contract/recording_redaction.rs"
+
+[[test]]
 name = "runner_restart"
 path = "tests/contract/runner_restart.rs"
 

@@ -5,6 +5,7 @@ use std::{
 };
 
 use rusqlite::{Connection, OptionalExtension, params};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
@@ -24,7 +25,8 @@ impl PayloadStore {
     }
 
     pub fn put(&self, payload: &[u8]) -> Result<String, RecordingStoreError> {
-        let hash = hash_payload(payload);
+        let payload = redact_payload(payload);
+        let hash = hash_payload(&payload);
         let path = self.path_for(&hash);
         if path.exists() {
             return Ok(hash);
@@ -34,7 +36,7 @@ impl PayloadStore {
         let temp = path.with_extension("tmp");
         let mut file =
             fs::File::create(&temp).map_err(|error| RecordingStoreError::Io(error.to_string()))?;
-        file.write_all(payload)
+        file.write_all(&payload)
             .map_err(|error| RecordingStoreError::Io(error.to_string()))?;
         file.sync_all()
             .map_err(|error| RecordingStoreError::Io(error.to_string()))?;
@@ -63,6 +65,56 @@ fn hash_payload(payload: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(payload);
     format!("sha256:{:x}", hasher.finalize())
+}
+
+const REDACTED: &str = "[REDACTED]";
+
+fn redact_payload(payload: &[u8]) -> Vec<u8> {
+    let Ok(mut value) = serde_json::from_slice::<Value>(payload) else {
+        return payload.to_vec();
+    };
+    redact_value(&mut value);
+    serde_json::to_vec(&value).unwrap_or_else(|_| payload.to_vec())
+}
+
+fn redact_value(value: &mut Value) {
+    match value {
+        Value::Array(values) => values.iter_mut().for_each(redact_value),
+        Value::Object(values) => {
+            for (key, value) in values {
+                if is_sensitive_key(key) {
+                    *value = Value::String(REDACTED.to_string());
+                } else {
+                    redact_value(value);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn is_sensitive_key(key: &str) -> bool {
+    let normalized = key
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .flat_map(char::to_lowercase)
+        .collect::<String>();
+    matches!(
+        normalized.as_str(),
+        "apikey"
+            | "token"
+            | "authorization"
+            | "password"
+            | "secret"
+            | "prompt"
+            | "reasoning"
+            | "hiddenreasoning"
+            | "chainofthought"
+    ) || normalized.ends_with("apikey")
+        || normalized.ends_with("token")
+        || normalized.ends_with("secret")
+        || normalized.ends_with("password")
+        || normalized.ends_with("prompt")
 }
 
 #[derive(Debug, Error)]
