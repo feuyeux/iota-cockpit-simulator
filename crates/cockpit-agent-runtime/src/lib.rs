@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cockpit_simulation_core::{
-    action::{ActionRequest, ActionResult, Command},
+    action::{ActionRequest, ActionResult, ActionStatus, Command},
     error::{SimulationError, SimulationResult},
     event::ToolCallTrace,
     sensor::Observation,
@@ -65,9 +65,63 @@ pub struct ToolResponse {
 #[derive(Debug, Default)]
 pub struct LocalMcpServer {
     action_results: BTreeMap<String, ActionResult>,
+    pending_actions: BTreeMap<String, ActionRequest>,
+    approval_required: bool,
 }
 
 impl LocalMcpServer {
+    pub fn set_approval_required(&mut self, required: bool) {
+        self.approval_required = required;
+    }
+
+    pub fn approve_action(
+        &mut self,
+        simulation: &mut Simulation,
+        request_id: &str,
+    ) -> Result<ActionResult, ToolError> {
+        let action = self
+            .pending_actions
+            .remove(request_id)
+            .ok_or_else(|| ToolError {
+                code: "ACTION_NOT_FOUND".to_string(),
+                message: "pending action was not found".to_string(),
+            })?;
+        let result = simulation.submit_action(action);
+        self.action_results
+            .insert(result.request.request_id.clone(), result.clone());
+        Ok(result)
+    }
+
+    pub fn reject_action(
+        &mut self,
+        simulation: &Simulation,
+        request_id: &str,
+        cancelled: bool,
+    ) -> Result<ActionResult, ToolError> {
+        let action = self
+            .pending_actions
+            .remove(request_id)
+            .ok_or_else(|| ToolError {
+                code: "ACTION_NOT_FOUND".to_string(),
+                message: "pending action was not found".to_string(),
+            })?;
+        let result = ActionResult {
+            request: action,
+            status: ActionStatus::Rejected,
+            error_code: Some(if cancelled {
+                cockpit_simulation_core::ErrorCode::ActionCancelled
+            } else {
+                cockpit_simulation_core::ErrorCode::ApprovalDenied
+            }),
+            run_id: simulation.run_id().to_string(),
+            tick: simulation.snapshot.tick,
+            correlation_id: request_id.to_string(),
+        };
+        self.action_results
+            .insert(result.request.request_id.clone(), result.clone());
+        Ok(result)
+    }
+
     pub fn tool_definitions() -> Vec<ToolDefinition> {
         vec![
             definition(
@@ -261,6 +315,21 @@ impl LocalMcpServer {
             expires_at_tick,
             correlation_id: request.correlation_id.clone(),
         };
+        if self.approval_required {
+            let result = ActionResult {
+                request: action.clone(),
+                status: ActionStatus::PendingApproval,
+                error_code: None,
+                run_id: simulation.run_id().to_string(),
+                tick: simulation.snapshot.tick,
+                correlation_id: request.correlation_id.clone(),
+            };
+            self.pending_actions
+                .insert(action.request_id.clone(), action);
+            self.action_results
+                .insert(result.request.request_id.clone(), result.clone());
+            return serde_json::to_value(result).map_err(serialization_error);
+        }
         let result = simulation.submit_action(action);
         self.action_results
             .insert(result.request.request_id.clone(), result.clone());

@@ -16,6 +16,7 @@ This repository currently implements the Phase 0 slice, the Phase 1 local agent/
 - `cockpit-agent-runtime` also has an `IotaCoreAcpAdapter` that builds an observation-only prompt and maps iota-core runtime events into a redacted trace.
 - `cockpit-runner` exposes a versioned tagged IPC contract with session authentication and event cursors for reconnect recovery.
 - Recording headers carry runtime/world-model versions, application commit, plugin hashes, scenario hash, seed, and clock configuration; rejected actions publish stable `ActionRejected` events.
+- Side-effecting MCP requests can be held as `pendingApproval` and controlled through `ApproveAction`, `RejectAction`, and `CancelAgentTurn` IPC commands.
 - `apps/cockpit-desktop` is an independent React 19 + Vite 7 + TypeScript + Tailwind 4 + Lucide app with a Tauri 2 host, typed runner state, controls, world, timeline, trace, and evaluation panels.
 
 The iota-core dependency is pinned to git revision `4d8a72a0af4a156437f7a23cfacbb059f0ee62e3`, with `default-features = false`; it is used only by `cockpit-agent-runtime`. The adapter is compile-tested and prompt-isolation tested; external backend startup remains opt-in and is not required for deterministic runs.

@@ -138,6 +138,47 @@ fn rejected_action_is_published_as_a_stable_event() {
 }
 
 #[test]
+fn mutation_requires_approval_when_the_runtime_policy_enables_it() {
+    let scenario = load_scenario("scenarios/smoke-in-cockpit.yaml").expect("scenario loads");
+    let mut simulation = Simulation::new("approval-run", scenario);
+    simulation.start().expect("run starts");
+    let mut server = LocalMcpServer::default();
+    server.set_approval_required(true);
+    let (response, _) = server.call(
+        &mut simulation,
+        request(
+            "approval-run",
+            "cockpit-agent",
+            TOOL_REQUEST_ACTION,
+            json!({
+                "target": "engine-1",
+                "command": "engineShutdown",
+                "expectedStateVersion": 0,
+                "expiresAtTick": 3
+            }),
+        ),
+    );
+    assert_eq!(
+        response
+            .result
+            .get("status")
+            .and_then(|value| value.as_str()),
+        Some("pendingApproval")
+    );
+    assert!(!simulation.snapshot.engine.shutdown);
+
+    let result = server
+        .approve_action(&mut simulation, "call-simulation.request_action")
+        .expect("approval applies");
+    assert_eq!(
+        result.status,
+        cockpit_simulation_core::ActionStatus::Applied
+    );
+    simulation.step_without_agent().expect("tick commits");
+    assert!(simulation.snapshot.engine.shutdown);
+}
+
+#[test]
 fn iota_core_adapter_loads_cockpit_skill_from_public_registry() {
     let skill = IotaCoreAdapter::new(env!("CARGO_MANIFEST_DIR"))
         .load_cockpit_skill()

@@ -60,6 +60,11 @@ impl RunnerHandler {
             RunnerCommand::PauseSimulation => self.pause(),
             RunnerCommand::StepSimulation => self.step(),
             RunnerCommand::StopSimulation => self.stop(),
+            RunnerCommand::ApproveAction { request_id } => self.approve_action(&request_id),
+            RunnerCommand::RejectAction { request_id, reason } => {
+                self.reject_action(&request_id, reason.as_deref())
+            }
+            RunnerCommand::CancelAgentTurn => self.cancel_agent_turn(),
             RunnerCommand::GetSimulationSnapshot => self.snapshot(),
             RunnerCommand::GetSimulationEvents { cursor } => Ok(json!({
                 "events": self.events_after(cursor),
@@ -237,6 +242,37 @@ impl RunnerHandler {
         Ok(json!({ "runId": run_id, "status": RunStatus::Stopped }))
     }
 
+    fn approve_action(&mut self, request_id: &str) -> HandlerResult {
+        let mut simulation = self
+            .simulation
+            .take()
+            .ok_or_else(|| Box::new(Self::no_run_error()))?;
+        let result = self.server.approve_action(&mut simulation, request_id);
+        self.simulation = Some(simulation);
+        let result = result.map_err(|error| Box::new(Self::tool_error(error)))?;
+        serde_json::to_value(result)
+            .map_err(|error| Box::new(Self::serialization_error(error.to_string())))
+    }
+
+    fn reject_action(&mut self, request_id: &str, reason: Option<&str>) -> HandlerResult {
+        let simulation = self
+            .simulation
+            .as_ref()
+            .ok_or_else(|| Box::new(Self::no_run_error()))?;
+        let result = self
+            .server
+            .reject_action(simulation, request_id, false)
+            .map_err(|error| Box::new(Self::tool_error(error)))?;
+        Ok(json!({
+            "result": result,
+            "reason": reason
+        }))
+    }
+
+    fn cancel_agent_turn(&mut self) -> HandlerResult {
+        Ok(json!({ "cancelled": true }))
+    }
+
     fn snapshot(&self) -> HandlerResult {
         let simulation = self
             .simulation
@@ -360,6 +396,17 @@ impl RunnerHandler {
         IpcError {
             code: "SERIALIZATION_ERROR".to_string(),
             message,
+            details: None,
+            run_id: None,
+            tick: None,
+            correlation_id: "runner".to_string(),
+        }
+    }
+
+    fn tool_error(error: cockpit_agent_runtime::ToolError) -> IpcError {
+        IpcError {
+            code: error.code,
+            message: error.message,
             details: None,
             run_id: None,
             tick: None,

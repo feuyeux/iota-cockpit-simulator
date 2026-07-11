@@ -29,6 +29,8 @@ pub enum ErrorCode {
     ActionExpired,
     ActionConflict,
     UnknownTarget,
+    ApprovalDenied,
+    ActionCancelled,
 }
 
 impl ErrorCode {
@@ -41,6 +43,8 @@ impl ErrorCode {
             Self::ActionExpired => "ACTION_EXPIRED",
             Self::ActionConflict => "ACTION_CONFLICT",
             Self::UnknownTarget => "UNKNOWN_TARGET",
+            Self::ApprovalDenied => "APPROVAL_DENIED",
+            Self::ActionCancelled => "ACTION_CANCELLED",
         }
     }
 }
@@ -51,6 +55,7 @@ pub enum ActionStatus {
     Applied,
     Rejected,
     Superseded,
+    PendingApproval,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

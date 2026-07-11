@@ -24,6 +24,15 @@ pub enum RunnerCommand {
     StepSimulation,
     #[serde(rename = "StopSimulation")]
     StopSimulation,
+    #[serde(rename = "ApproveAction")]
+    ApproveAction { request_id: String },
+    #[serde(rename = "RejectAction")]
+    RejectAction {
+        request_id: String,
+        reason: Option<String>,
+    },
+    #[serde(rename = "CancelAgentTurn")]
+    CancelAgentTurn,
     #[serde(rename = "GetSimulationSnapshot")]
     GetSimulationSnapshot,
     #[serde(rename = "GetSimulationEvents")]
