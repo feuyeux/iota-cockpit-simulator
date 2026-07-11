@@ -13,10 +13,11 @@ This repository currently implements the Phase 0 slice, the Phase 1 local agent/
 - Rust workspace with pure simulation core, scenario loading, SQLite recording/replay, evaluation, `cockpit-agent-runtime`, and `cockpit-runner`.
 - `scenarios/smoke-in-cockpit.yaml` drives smoke detection, a scripted shutdown action, recording, replay, and evaluation.
 - `cockpit-agent-runtime` exposes six typed simulation tools, capability enforcement, a RuleAgent, timeout/fallback policy, and an iota-core SkillRegistry adapter.
+- `cockpit-agent-runtime` also has an `IotaCoreAcpAdapter` that builds an observation-only prompt and maps iota-core runtime events into a redacted trace.
 - `cockpit-runner` exposes a versioned tagged IPC contract with session authentication and event cursors for reconnect recovery.
 - `apps/cockpit-desktop` is an independent React 19 + Vite 7 + TypeScript + Tailwind 4 + Lucide app with a Tauri 2 host, typed runner state, controls, world, timeline, trace, and evaluation panels.
 
-The iota-core dependency is pinned to git revision `4d8a72a0af4a156437f7a23cfacbb059f0ee62e3`, with `default-features = false`; it is used only by `cockpit-agent-runtime`. The ACP session adapter remains a follow-up because the current vertical slice uses the deterministic RuleAgent.
+The iota-core dependency is pinned to git revision `4d8a72a0af4a156437f7a23cfacbb059f0ee62e3`, with `default-features = false`; it is used only by `cockpit-agent-runtime`. The adapter is compile-tested and prompt-isolation tested; external backend startup remains opt-in and is not required for deterministic runs.
 
 ## Verify
 

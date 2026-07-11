@@ -72,5 +72,9 @@ name = "runtime_policy"
 path = "tests/contract/runtime_policy.rs"
 
 [[test]]
+name = "acp_adapter"
+path = "tests/contract/acp_adapter.rs"
+
+[[test]]
 name = "rule_agent_smoke"
 path = "tests/integration/rule_agent_smoke.rs"

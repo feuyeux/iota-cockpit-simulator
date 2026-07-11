@@ -23,6 +23,7 @@ Status: in progress. This report records the verified local vertical slice; it d
 - SQLite recording round-trips run metadata, ticks, hashes, observations, actions, and tool traces.
 - Runner IPC validates protocol version and session token, emits tagged events, and supports cursor reads.
 - Tauri command host compiles and React/Vite typecheck and production build pass.
+- iota-core ACP adapter compiles, applies the configured timeout/fallback policy, and prompt contract tests exclude Ground Truth fields.
 
 ## Commands
 
@@ -38,7 +39,7 @@ cd apps/cockpit-desktop && npm test && npm run build
 
 ## Not yet verified
 
-- ACP backend startup, approval, cancellation, retry, and real model network policy.
+- Live ACP backend startup, approval, cancellation, retry, and real model network policy.
 - Production iota-core git dependency manifest and CI on a clean machine.
 - SQLite content-addressed large-payload files and migration tooling.
 - Tauri packaged binary, reconnect behavior across process restart, and cross-platform packaging.

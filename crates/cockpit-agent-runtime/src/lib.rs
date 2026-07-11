@@ -10,6 +10,7 @@ use cockpit_simulation_core::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+pub mod acp_adapter;
 pub mod iota_core_adapter;
 pub mod policy;
 pub mod skill;
