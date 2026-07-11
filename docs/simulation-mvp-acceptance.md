@@ -27,6 +27,7 @@ Status: in progress. This report records the verified local vertical slice; it d
 - Multiple agent grants use deterministic priority/agent ordering, with duplicate target actions rejected before commit.
 - Large recording payloads use content-addressed SHA-256 fanout files; SQLite retains the payload hash and size.
 - A new persistent runner handler can restore a recorded run after process restart and rebuild its snapshot/event cursor.
+- Recording writes use a bounded queue contract with explicit pause/fail/drop outcomes and queue health counters; runner responses expose health and overflow emits a structured `RECORDING_QUEUE_OVERFLOW` error. The current synchronous store path drains immediately, so sustained asynchronous overload behavior remains unverified.
 - Local benchmark at 1,000 entities and 10,000 events/minute: p95 0.2942 ms, p99 0.3286 ms, peak 0.4204 ms, recording 168,805 bytes (Windows dev profile, 120 ticks, scenario hash `15dd2255dec80c92ec2f898d27808513123b9d483d72bdbd90f49ae47a602002`, seed 42).
 - Observation and tool trace data do not include Ground Truth smoke or fire fields.
 - MCP tool results are capped at 1 MiB; oversized results return stable `PAYLOAD_TOO_LARGE` rather than being truncated or written to trace/recording.

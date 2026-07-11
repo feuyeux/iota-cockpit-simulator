@@ -25,7 +25,7 @@ Status: in progress. This file records the next implementation work from `doc/00
 
 ## Simulation And Recording
 
-- Implement bounded recording queue behavior with explicit pause/fail/drop policy and observable queue health.
+- [x] Add bounded recording queue behavior with explicit pause/fail/drop policy and observable queue health; `cockpit-runner` reports queue metrics and emits `RECORDING_QUEUE_OVERFLOW`. Sustained asynchronous store overload remains unverified because the current store drains synchronously.
 - Build scheduled event delivery, subscriptions, and versioned influence rules beyond the smoke scenario's direct systems.
 - Expand conflict policies and deterministic arbitration evidence.
 - Add recording migration tooling and a compatibility strategy beyond version rejection.
