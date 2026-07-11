@@ -28,8 +28,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function SimulationTrace({ model, dispatch }: Props) {
   async function syncEvents() {
     try {
-      const events = await runnerClient.snapshot(model.lastCursor);
-      for (const event of events) dispatch({ type: "runnerEvent", event });
+      const batch = await runnerClient.snapshot(model.lastCursor);
+      if (batch.resetRequired) {
+        const snapshot = await runnerClient.simulationSnapshot();
+        dispatch({ type: "snapshotReset", snapshot, cursor: batch.firstAvailableCursor - 1 });
+      }
+      for (const event of batch.events) dispatch({ type: "runnerEvent", event });
     } catch (error) {
       dispatch({
         type: "commandRejected",

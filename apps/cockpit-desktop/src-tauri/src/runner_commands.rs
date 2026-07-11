@@ -293,15 +293,18 @@ pub fn diff_recordings(
 pub fn get_simulation_events(
     state: tauri::State<'_, RunnerState>,
     cursor: Option<u64>,
-) -> Result<Vec<RunnerEvent>, String> {
+) -> Result<SimulationEventBatch, String> {
     let result = state.dispatch(RunnerCommand::GetSimulationEvents { cursor })?;
-    serde_json::from_value(
-        result
-            .get("events")
-            .cloned()
-            .unwrap_or(Value::Array(Vec::new())),
-    )
-    .map_err(|error| error.to_string())
+    serde_json::from_value(result).map_err(|error| error.to_string())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SimulationEventBatch {
+    pub events: Vec<RunnerEvent>,
+    pub next_cursor: u64,
+    pub first_available_cursor: u64,
+    pub reset_required: bool,
 }
 
 #[tauri::command]

@@ -17,8 +17,12 @@ interface Props {
 
 export function SimulationRunControl({ model, dispatch }: Props) {
   async function syncEvents() {
-    const events = await runnerClient.snapshot(model.lastCursor);
-    for (const event of events) dispatch({ type: "runnerEvent", event });
+    const batch = await runnerClient.snapshot(model.lastCursor);
+    if (batch.resetRequired) {
+      const snapshot = await runnerClient.simulationSnapshot();
+      dispatch({ type: "snapshotReset", snapshot, cursor: batch.firstAvailableCursor - 1 });
+    }
+    for (const event of batch.events) dispatch({ type: "runnerEvent", event });
   }
 
   async function runCommand(command: () => Promise<void>): Promise<boolean> {

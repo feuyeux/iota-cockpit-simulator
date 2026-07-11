@@ -38,6 +38,7 @@ Status: in progress. This report records the verified local vertical slice; it d
 - MCP and ACP trace payloads recursively redact nested sensitive fields before they are emitted to the runner, desktop, or recording pipeline.
 - Runner IPC validates protocol version and session token, emits tagged events, and supports cursor reads.
 - Loopback IPC rejects newline-delimited requests larger than 1 MiB with structured `PAYLOAD_TOO_LARGE`, without truncating input.
+- Runner event history is bounded; stale cursors return reset metadata, and desktop synchronization refreshes the authoritative snapshot before applying retained events.
 - Loopback runner server preserves handler state across a client disconnect and cursor-based reconnect.
 - Tauri command host compiles and React/Vite typecheck and production build pass.
 - Desktop exposes recording replay and recording comparison controls, and presents equivalence or first-divergence tick evidence from runner diff reports.

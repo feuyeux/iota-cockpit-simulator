@@ -171,6 +171,13 @@ export interface ToolCallTrace {
   allowed: boolean;
 }
 
+export interface RunnerEventBatch {
+  events: RunnerEvent[];
+  nextCursor: number;
+  firstAvailableCursor: number;
+  resetRequired: boolean;
+}
+
 export interface SimulationModel {
   state: RunState;
   scenario?: ScenarioSummary;

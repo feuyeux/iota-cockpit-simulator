@@ -15,6 +15,7 @@ export type SimulationAction =
   | { type: "scenarioReady"; scenario: ScenarioSummary; runId?: string }
   | { type: "approvalModeChanged"; required: boolean }
   | { type: "replayDiffUpdated"; report: import("../types/simulation").RecordingDiff }
+  | { type: "snapshotReset"; snapshot: import("../types/simulation").WorldSnapshot; cursor: number }
   | { type: "commandRejected"; error: SimulationError }
   | { type: "runnerEvent"; event: RunnerEvent };
 
@@ -72,6 +73,18 @@ export function simulationReducer(
       return { ...state, approvalRequired: action.required };
     case "replayDiffUpdated":
       return { ...state, replayDiff: action.report };
+    case "snapshotReset":
+      return {
+        ...state,
+        runId: action.snapshot.runId,
+        tick: action.snapshot.tick,
+        simTimeMs: action.snapshot.simTimeMs,
+        snapshot: action.snapshot,
+        events: [],
+        toolCalls: [],
+        actionResults: [],
+        lastCursor: action.cursor
+      };
     case "commandRejected":
       return {
         ...state,

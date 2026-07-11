@@ -4,12 +4,9 @@ Status: in progress. This file records the next implementation work from `doc/00
 
 ## Immediate Handoff
 
-- Finish the bounded runner event-history slice currently left uncommitted:
-  - `crates/cockpit-runner/src/ipc/handler.rs` retains at most `MAX_EVENT_HISTORY` events and returns `firstAvailableCursor` plus `resetRequired` from `GetSimulationEvents`.
-  - `tests/contract/runner_ipc.rs` adds coverage for a stale cursor after retention trimming.
-  - Re-export `MAX_EVENT_HISTORY` from `crates/cockpit-runner/src/ipc/mod.rs`, update the test import, run formatting/tests/clippy, and commit.
-- Extend Tauri `get_simulation_events` and `runnerClient.snapshot` to return cursor metadata, not only events.
-- On desktop reconnect, when `resetRequired` is true, fetch the authoritative simulation snapshot and replace stale event-derived state before consuming retained events.
+- Bounded runner event history, cursor metadata, and stale-cursor regression coverage are complete.
+- Tauri and `runnerClient.snapshot` now preserve cursor metadata and return event batches.
+- Desktop sync/reconnect resets from the authoritative snapshot when `resetRequired` is true before applying retained events.
 
 ## Runtime And ACP
 
@@ -48,4 +45,3 @@ Status: in progress. This file records the next implementation work from `doc/00
 - Add clean-machine CI validation for the pinned iota-core git dependency.
 - Keep `README.md` and `docs/simulation-mvp-acceptance.md` synchronized with only verified claims.
 - Do not mark the MVP complete until every item in the `doc/001.md` checklist has authoritative evidence.
-
