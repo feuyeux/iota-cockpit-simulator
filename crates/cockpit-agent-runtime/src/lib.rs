@@ -25,6 +25,7 @@ pub const TOOL_INSPECT_SENSOR_QUALITY: &str = "simulation.inspect_sensor_quality
 pub const TOOL_REQUEST_ACTION: &str = "simulation.request_action";
 pub const TOOL_GET_ACTION_RESULT: &str = "simulation.get_action_result";
 pub const TOOL_GET_RUN_STATUS: &str = "simulation.get_run_status";
+pub const MAX_TOOL_RESPONSE_BYTES: usize = 1_048_576;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -227,12 +228,25 @@ impl LocalMcpServer {
             self.dispatch(simulation, &request)
         };
 
+        let (result, error) = match result {
+            Ok(result) if response_fits(&result) => (result, None),
+            Ok(_) => (
+                Value::Null,
+                Some(ToolError {
+                    code: "PAYLOAD_TOO_LARGE".to_string(),
+                    message: format!(
+                        "tool response exceeds {MAX_TOOL_RESPONSE_BYTES} byte limit; use a paginated tool response"
+                    ),
+                }),
+            ),
+            Err(error) => (Value::Null, Some(error)),
+        };
         let response = ToolResponse {
             run_id: simulation.run_id().to_string(),
             tick: simulation.snapshot.tick,
             correlation_id: request.correlation_id.clone(),
-            result: result.clone().unwrap_or(Value::Null),
-            error: result.err(),
+            result,
+            error,
         };
         let trace = ToolCallTrace {
             call_id: request.call_id,
@@ -356,6 +370,24 @@ impl LocalMcpServer {
         self.action_results
             .insert(result.request.request_id.clone(), result.clone());
         serde_json::to_value(result).map_err(serialization_error)
+    }
+}
+
+fn response_fits(result: &Value) -> bool {
+    serde_json::to_vec(result)
+        .map(|bytes| bytes.len() <= MAX_TOOL_RESPONSE_BYTES)
+        .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MAX_TOOL_RESPONSE_BYTES, response_fits};
+    use serde_json::json;
+
+    #[test]
+    fn tool_response_size_limit_rejects_oversized_values_without_truncation() {
+        let value = json!({ "payload": "x".repeat(MAX_TOOL_RESPONSE_BYTES) });
+        assert!(!response_fits(&value));
     }
 }
 
