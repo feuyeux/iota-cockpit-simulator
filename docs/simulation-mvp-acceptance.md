@@ -42,6 +42,7 @@ Status: in progress. This report records the verified local vertical slice; it d
 - Tauri command host compiles and React/Vite typecheck and production build pass.
 - Desktop exposes recording replay and recording comparison controls, and presents equivalence or first-divergence tick evidence from runner diff reports.
 - iota-core ACP adapter compiles, applies the configured timeout/fallback policy, and prompt contract tests exclude Ground Truth fields.
+- Agent runtime policy has bounded retry and circuit-breaker behavior with contract coverage; the current iota-core public turn API does not expose a cancellable live ACP handle, so live backend cancellation/retry remains unverified.
 
 ## Commands
 

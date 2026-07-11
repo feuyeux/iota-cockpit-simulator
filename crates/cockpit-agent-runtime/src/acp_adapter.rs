@@ -17,6 +17,8 @@ pub struct AcpAdapterConfig {
     pub cwd: PathBuf,
     pub timeout_ms: u64,
     pub fallback: FallbackPolicy,
+    pub max_attempts: usize,
+    pub circuit_failure_threshold: usize,
 }
 
 impl Default for AcpAdapterConfig {
@@ -26,6 +28,8 @@ impl Default for AcpAdapterConfig {
             cwd: PathBuf::from("."),
             timeout_ms: 2_000,
             fallback: FallbackPolicy::RuleAgent,
+            max_attempts: 2,
+            circuit_failure_threshold: 3,
         }
     }
 }
@@ -61,6 +65,10 @@ impl IotaCoreAcpAdapter {
             adapter_config.timeout_ms,
             1,
             adapter_config.fallback.clone(),
+        )
+        .with_retry(
+            adapter_config.max_attempts,
+            adapter_config.circuit_failure_threshold,
         );
         Self {
             engine: IotaEngine::create_session(
