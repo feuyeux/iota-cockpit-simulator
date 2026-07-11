@@ -15,6 +15,7 @@ Status: in progress. This report records the verified local vertical slice; it d
 ## Verified
 
 - Scenario YAML loads, validates schema version, entity references, ranges, and capabilities.
+- Scenario parsing rejects documents above 1 MiB and bounds entities, faults, agents, evaluation rules, identifiers, and capabilities before building a simulation.
 - Smoke fault changes visibility and produces a degraded Observation.
 - RuleAgent calls `simulation.get_observation` and `simulation.request_action`.
 - Action Gateway applies engine shutdown and rejects an unknown agent identity.

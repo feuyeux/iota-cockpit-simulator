@@ -10,6 +10,14 @@ use cockpit_simulation_core::{
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
+pub const MAX_SCENARIO_BYTES: usize = 1_048_576;
+pub const MAX_SCENARIO_ENTITIES: usize = 1_000;
+pub const MAX_SCENARIO_FAULTS: usize = 10_000;
+pub const MAX_SCENARIO_AGENTS: usize = 32;
+pub const MAX_SCENARIO_EVALUATIONS: usize = 100;
+pub const MAX_SCENARIO_IDENTIFIER_BYTES: usize = 128;
+pub const MAX_AGENT_CAPABILITIES: usize = 64;
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ScenarioDocument {
@@ -78,6 +86,11 @@ pub fn load_scenario(path: impl AsRef<Path>) -> SimulationResult<SimulationScena
 }
 
 pub fn parse_scenario_bytes(bytes: &[u8]) -> SimulationResult<SimulationScenario> {
+    if bytes.len() > MAX_SCENARIO_BYTES {
+        return Err(SimulationError::InvalidScenario(format!(
+            "scenario exceeds {MAX_SCENARIO_BYTES} byte limit"
+        )));
+    }
     let document: ScenarioDocument = serde_yaml::from_slice(bytes)
         .map_err(|err| SimulationError::InvalidScenario(format!("invalid YAML: {err}")))?;
     validate_document(&document)?;
@@ -158,6 +171,33 @@ fn validate_document(document: &ScenarioDocument) -> SimulationResult<()> {
             "clock.tickMs must be greater than zero".to_string(),
         ));
     }
+    validate_limit("entities", document.entities.len(), MAX_SCENARIO_ENTITIES)?;
+    validate_limit("faults", document.faults.len(), MAX_SCENARIO_FAULTS)?;
+    validate_limit("agents", document.agents.len(), MAX_SCENARIO_AGENTS)?;
+    validate_limit(
+        "evaluation rules",
+        document.evaluation.len(),
+        MAX_SCENARIO_EVALUATIONS,
+    )?;
+    validate_identifier("scenario id", &document.id)?;
+    for entity in &document.entities {
+        validate_identifier("entity id", &entity.id)?;
+    }
+    for fault in &document.faults {
+        validate_identifier("fault target", &fault.target)?;
+        validate_identifier("fault type", &fault.fault_type)?;
+    }
+    for agent in &document.agents {
+        validate_identifier("agent id", &agent.id)?;
+        validate_limit(
+            "agent capabilities",
+            agent.capabilities.len(),
+            MAX_AGENT_CAPABILITIES,
+        )?;
+        for capability in &agent.capabilities {
+            validate_identifier("agent capability", capability)?;
+        }
+    }
     if !document.entities.iter().any(|entity| entity.id == "cabin") {
         return Err(SimulationError::InvalidScenario(
             "missing cabin entity".to_string(),
@@ -176,6 +216,25 @@ fn validate_document(document: &ScenarioDocument) -> SimulationResult<()> {
         return Err(SimulationError::InvalidScenario(
             "missing agents".to_string(),
         ));
+    }
+    Ok(())
+}
+
+fn validate_limit(name: &str, actual: usize, limit: usize) -> SimulationResult<()> {
+    if actual <= limit {
+        Ok(())
+    } else {
+        Err(SimulationError::InvalidScenario(format!(
+            "{name} exceeds {limit} item limit"
+        )))
+    }
+}
+
+fn validate_identifier(name: &str, value: &str) -> SimulationResult<()> {
+    if value.is_empty() || value.len() > MAX_SCENARIO_IDENTIFIER_BYTES {
+        return Err(SimulationError::InvalidScenario(format!(
+            "{name} must be 1..={MAX_SCENARIO_IDENTIFIER_BYTES} bytes"
+        )));
     }
     Ok(())
 }

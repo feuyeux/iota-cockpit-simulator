@@ -102,6 +102,10 @@ name = "recording_redaction"
 path = "tests/contract/recording_redaction.rs"
 
 [[test]]
+name = "scenario_limits"
+path = "tests/contract/scenario_limits.rs"
+
+[[test]]
 name = "runner_restart"
 path = "tests/contract/runner_restart.rs"
 
