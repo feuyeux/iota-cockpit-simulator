@@ -4,6 +4,7 @@ use cockpit_simulation_core::{
     action::AgentGrant,
     clock::ClockConfig,
     error::{SimulationError, SimulationResult},
+    influence::{ConflictPolicy, InfluenceRule},
     simulation::{Fault, SimulationScenario},
     world::{AlarmState, DeviceState, EnvironmentState, HumanState},
 };
@@ -17,6 +18,7 @@ pub const MAX_SCENARIO_AGENTS: usize = 32;
 pub const MAX_SCENARIO_EVALUATIONS: usize = 100;
 pub const MAX_SCENARIO_IDENTIFIER_BYTES: usize = 128;
 pub const MAX_AGENT_CAPABILITIES: usize = 64;
+pub const MAX_SCENARIO_INFLUENCES: usize = 10_000;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +33,10 @@ struct ScenarioDocument {
     agents: Vec<AgentDocument>,
     #[serde(default)]
     evaluation: Vec<EvaluationDocument>,
+    #[serde(default)]
+    influences: Vec<InfluenceRule>,
+    #[serde(default)]
+    conflict_policy: Option<ConflictPolicy>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -156,6 +162,10 @@ pub fn parse_scenario_bytes(bytes: &[u8]) -> SimulationResult<SimulationScenario
             })
             .collect(),
         shutdown_deadline_ticks,
+        influences: document.influences,
+        conflict_policy: document
+            .conflict_policy
+            .unwrap_or(ConflictPolicy::RejectConflicting),
     })
 }
 
@@ -217,7 +227,46 @@ fn validate_document(document: &ScenarioDocument) -> SimulationResult<()> {
             "missing agents".to_string(),
         ));
     }
+    validate_limit(
+        "influences",
+        document.influences.len(),
+        MAX_SCENARIO_INFLUENCES,
+    )?;
+    for influence in &document.influences {
+        validate_identifier("influence rule id", &influence.rule_id)?;
+        validate_identifier("influence entity id", &influence.entity_id)?;
+        if !is_writable_component(&influence.entity_id, &influence.component_path) {
+            return Err(SimulationError::InvalidScenario(format!(
+                "influence rule '{}' targets unknown component {}::{}",
+                influence.rule_id, influence.entity_id, influence.component_path
+            )));
+        }
+        if let cockpit_simulation_core::influence::InfluenceSchedule::Every { interval, .. } =
+            influence.schedule
+            && interval == 0
+        {
+            return Err(SimulationError::InvalidScenario(format!(
+                "influence rule '{}' has a zero interval",
+                influence.rule_id
+            )));
+        }
+    }
     Ok(())
+}
+
+/// Component paths that scheduled influences may target, mirroring the writable
+/// StateDiff surface in the simulation core.
+fn is_writable_component(entity_id: &str, component_path: &str) -> bool {
+    matches!(
+        (entity_id, component_path),
+        ("cabin", "environment.smokeDensity")
+            | ("cabin", "environment.visibility")
+            | ("cabin", "environment.temperatureC")
+            | ("pilot-1", "pilot.stress")
+            | ("pilot-1", "pilot.attention")
+            | ("engine-1", "engine.health")
+            | ("alarm-1", "alarm.active")
+    )
 }
 
 fn validate_limit(name: &str, actual: usize, limit: usize) -> SimulationResult<()> {

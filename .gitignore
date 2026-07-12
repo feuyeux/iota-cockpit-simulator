@@ -3,3 +3,4 @@
 /apps/cockpit-desktop/dist/
 /apps/cockpit-desktop/tsconfig.tsbuildinfo
 /apps/cockpit-desktop/src-tauri/gen/
+/apps/cockpit-desktop/src-tauri/binaries/

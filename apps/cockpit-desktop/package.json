@@ -6,13 +6,17 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 15342",
     "build": "tsc -b && vite build",
-    "test": "tsc -b --noEmit",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:tsc": "tsc -b --noEmit",
+    "tauri:prepare-sidecar": "powershell -ExecutionPolicy Bypass -File src-tauri/prepare-sidecar.ps1",
+    "tauri:dev": "npm run tauri:prepare-sidecar && tauri dev",
+    "tauri:build": "npm run tauri:prepare-sidecar && tauri build"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.0.0",
     "@tailwindcss/vite": "^4.1.0",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
     "@vitejs/plugin-react": "^5.0.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
@@ -21,9 +25,12 @@
     "vite": "^7.0.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@tauri-apps/cli": "^2.0.0",
-    "typescript": "^5.7.0"
+    "@vitest/ui": "^3.0.0",
+    "jsdom": "^25.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }

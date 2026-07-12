@@ -1,3 +1,5 @@
+import { APP_CONFIG } from "../config/constants";
+import { persistApprovalMode, persistRunId, persistScenario } from "../utils/storage";
 import type {
   RunnerEvent,
   ScenarioSummary,
@@ -55,6 +57,8 @@ export function simulationReducer(
     case "runCreating":
       return { ...state, state: "runCreating", error: undefined };
     case "scenarioReady":
+      if (action.scenario) persistScenario(action.scenario);
+      if (action.runId) persistRunId(action.runId);
       return {
         ...state,
         state: "ready",
@@ -70,6 +74,7 @@ export function simulationReducer(
         error: undefined
       };
     case "approvalModeChanged":
+      persistApprovalMode(action.required);
       return { ...state, approvalRequired: action.required };
     case "replayDiffUpdated":
       return { ...state, replayDiff: action.report };
@@ -116,19 +121,19 @@ function reduceRunnerEvent(state: SimulationModel, event: RunnerEvent): Simulati
     case "SimulationEvent":
       return {
         ...state,
-        events: [event.event, ...state.events].slice(0, 300),
+        events: [event.event, ...state.events].slice(0, APP_CONFIG.MAX_EVENTS),
         lastCursor: event.cursor
       };
     case "SimulationToolCall":
       return {
         ...state,
-        toolCalls: [event.trace, ...state.toolCalls].slice(0, 100),
+        toolCalls: [event.trace, ...state.toolCalls].slice(0, APP_CONFIG.MAX_TOOL_CALLS),
         lastCursor: event.cursor
       };
     case "SimulationActionResult":
       return {
         ...state,
-        actionResults: [event.result, ...state.actionResults].slice(0, 100),
+        actionResults: [event.result, ...state.actionResults].slice(0, APP_CONFIG.MAX_ACTION_RESULTS),
         lastCursor: event.cursor
       };
     case "SimulationEvaluationUpdated":

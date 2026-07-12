@@ -1,5 +1,7 @@
-import { useEffect } from "react";
-import { Pause, Play, SkipForward, Square, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Pause, Play, SkipForward, Square, Upload, FolderOpen } from "lucide-react";
+import { APP_CONFIG, KEYBOARD_SHORTCUTS } from "../config/constants";
+import { useRunner } from "../hooks/useRunner";
 import { runnerClient } from "../runnerClient";
 import {
   canPause,
@@ -16,55 +18,45 @@ interface Props {
 }
 
 export function SimulationRunControl({ model, dispatch }: Props) {
-  async function syncEvents() {
-    const batch = await runnerClient.snapshot(model.lastCursor);
-    if (batch.resetRequired) {
-      const snapshot = await runnerClient.simulationSnapshot();
-      dispatch({ type: "snapshotReset", snapshot, cursor: batch.firstAvailableCursor - 1 });
-    }
-    for (const event of batch.events) dispatch({ type: "runnerEvent", event });
-  }
-
-  async function runCommand(command: () => Promise<void>): Promise<boolean> {
-    try {
-      await command();
-      await syncEvents();
-      return true;
-    } catch (error) {
-      dispatch({
-        type: "commandRejected",
-        error: {
-          code: "RUNNER_COMMAND_FAILED",
-          message: error instanceof Error ? error.message : "command failed",
-          runId: model.runId,
-          tick: model.tick,
-          correlationId: "desktop-command"
-        }
-      });
-      return false;
-    }
-  }
+  const { syncEvents, runCommand } = useRunner(model, dispatch);
+  const [scenarioPath, setScenarioPath] = useState<string>(APP_CONFIG.DEFAULT_SCENARIO_PATH);
+  const [autoStep, setAutoStep] = useState(false);
+  const [stepInterval, setStepInterval] = useState(500); // ms between auto-steps
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) {
         return;
       }
-      if (event.key === " " && canPause(model)) {
+      if (event.key === KEYBOARD_SHORTCUTS.PAUSE && canPause(model)) {
         event.preventDefault();
         void runCommand(runnerClient.pause);
-      } else if (event.key.toLowerCase() === "s" && canStep(model)) {
+      } else if (event.key.toLowerCase() === KEYBOARD_SHORTCUTS.STEP && canStep(model)) {
         event.preventDefault();
         void runCommand(runnerClient.step);
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [model]);
+  }, [model, runCommand]);
 
-  async function loadScenario() {
+  // Auto-step effect
+  useEffect(() => {
+    if (!autoStep || model.state !== "running") {
+      return;
+    }
+    const intervalId = setInterval(async () => {
+      if (canStep(model)) {
+        await runCommand(runnerClient.step);
+      } else {
+        setAutoStep(false);
+      }
+    }, stepInterval);
+    return () => clearInterval(intervalId);
+  }, [autoStep, model, stepInterval, runCommand]);
+
+  async function loadScenario(path: string) {
     dispatch({ type: "scenarioLoading" });
-    const path = "scenarios/smoke-in-cockpit.yaml";
     let scenario;
     try {
       scenario = await runnerClient.validateScenario(path);
@@ -85,6 +77,14 @@ export function SimulationRunControl({ model, dispatch }: Props) {
     await syncEvents();
   }
 
+  async function browseScenario() {
+    const path = await runnerClient.openScenarioFilePicker();
+    if (path) {
+      setScenarioPath(path);
+      await runCommand(() => loadScenario(path));
+    }
+  }
+
   async function setApprovalRequired(required: boolean) {
     if (await runCommand(() => runnerClient.setApprovalRequired(required))) {
       dispatch({ type: "approvalModeChanged", required });
@@ -95,13 +95,29 @@ export function SimulationRunControl({ model, dispatch }: Props) {
     <section className="border border-zinc-800 bg-zinc-900/70">
       <div className="border-b border-zinc-800 px-3 py-2 text-sm font-medium">Scenario</div>
       <div className="space-y-3 p-3">
-        <button
-          className="flex h-9 w-full items-center justify-center gap-2 border border-zinc-700 bg-zinc-800 text-sm hover:bg-zinc-700"
-          onClick={() => runCommand(loadScenario)}
-        >
-          <Upload className="h-4 w-4" />
-          Load smoke scenario
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="flex h-9 flex-1 items-center justify-center gap-2 border border-zinc-700 bg-zinc-800 text-sm hover:bg-zinc-700"
+            onClick={() => runCommand(() => loadScenario(scenarioPath))}
+          >
+            <Upload className="h-4 w-4" />
+            Load
+          </button>
+          <button
+            aria-label="Browse scenario"
+            className="control-button h-9 w-9"
+            onClick={() => void browseScenario()}
+          >
+            <FolderOpen className="h-4 w-4" />
+          </button>
+        </div>
+        <input
+          aria-label="Scenario path"
+          className="h-8 w-full border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
+          placeholder="Scenario path"
+          value={scenarioPath}
+          onChange={(event) => setScenarioPath(event.target.value)}
+        />
         <div className="grid grid-cols-2 gap-2">
           <button
             aria-label="Start"
@@ -145,6 +161,30 @@ export function SimulationRunControl({ model, dispatch }: Props) {
             onChange={(event) => void setApprovalRequired(event.target.checked)}
           />
         </label>
+        <label className="flex items-center justify-between gap-3 border border-zinc-800 px-2 py-2 text-xs text-zinc-300">
+          <span>Auto-step</span>
+          <input
+            aria-label="Automatically step through simulation"
+            checked={autoStep}
+            type="checkbox"
+            disabled={model.state !== "running"}
+            onChange={(event) => setAutoStep(event.target.checked)}
+          />
+        </label>
+        {autoStep && (
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-zinc-400">Interval (ms):</label>
+            <input
+              type="number"
+              min="100"
+              max="5000"
+              step="100"
+              value={stepInterval}
+              onChange={(event) => setStepInterval(Number(event.target.value))}
+              className="h-7 w-20 border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
+            />
+          </div>
+        )}
         <dl className="grid grid-cols-2 gap-2 text-xs text-zinc-300">
           <dt>Seed</dt>
           <dd className="text-right">{model.scenario?.seed ?? "-"}</dd>

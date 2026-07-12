@@ -30,6 +30,13 @@ pub struct BenchmarkReport {
     pub peak_tick_ms: f64,
     pub recording_bytes: usize,
     pub synthetic_workload_hash: String,
+    /// Peak resident set size in bytes, when the platform exposes it without
+    /// extra dependencies; `None` means it was not captured on this OS.
+    pub peak_memory_bytes: Option<u64>,
+    /// How `peak_memory_bytes` was obtained (or why it is absent).
+    pub peak_memory_source: String,
+    /// Target triple the benchmark ran on, for cross-platform acceptance.
+    pub target: String,
 }
 
 pub fn run(config: BenchmarkConfig) -> anyhow::Result<BenchmarkReport> {
@@ -63,6 +70,7 @@ pub fn run(config: BenchmarkConfig) -> anyhow::Result<BenchmarkReport> {
         nanos[index] as f64 / 1_000_000.0
     };
     let recording_bytes = serde_json::to_vec(&recording)?.len();
+    let peak_memory_bytes = crate::memory::peak_resident_bytes();
 
     Ok(BenchmarkReport {
         scenario_id: scenario.id,
@@ -78,6 +86,9 @@ pub fn run(config: BenchmarkConfig) -> anyhow::Result<BenchmarkReport> {
         peak_tick_ms: nanos.last().copied().unwrap_or_default() as f64 / 1_000_000.0,
         recording_bytes,
         synthetic_workload_hash: format!("sha256:{:x}", workload_hasher.finalize()),
+        peak_memory_bytes,
+        peak_memory_source: crate::memory::peak_memory_source().to_string(),
+        target: format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS),
     })
 }
 

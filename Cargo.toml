@@ -32,6 +32,7 @@ sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "time", "sync", "net", "io-util"] }
+tokio-util = "0.7"
 thiserror = "2"
 cockpit-simulation-core = { path = "crates/cockpit-simulation-core" }
 cockpit-scenario = { path = "crates/cockpit-scenario" }
@@ -40,7 +41,15 @@ cockpit-evaluation = { path = "crates/cockpit-evaluation" }
 cockpit-agent-runtime = { path = "crates/cockpit-agent-runtime" }
 cockpit-runner = { path = "crates/cockpit-runner" }
 cockpit-plugin = { path = "crates/cockpit-plugin" }
-iota-core = { git = "https://github.com/feuyeux/iota-sympantos.git", rev = "4d8a72a0af4a156437f7a23cfacbb059f0ee62e3", package = "iota-core", default-features = false }
+# iota-core is pinned to a git revision that exposes the cancellable turn API
+# (`run_cancellable` + `TurnCancelled`). It is used only by cockpit-agent-runtime.
+iota-core = { git = "https://github.com/feuyeux/iota-sympantos.git", rev = "d29de2e6a65f887c8f5e0e7f0bbb387fd91b6dad", package = "iota-core", default-features = false }
+
+[features]
+# Opt-in real iota-core ACP backend, forwarded to the runner and agent runtime.
+# The default build keeps live-agent tests deterministic and offline.
+default = []
+live-acp = ["cockpit-runner/live-acp"]
 
 [dependencies]
 cockpit-simulation-core.workspace = true
@@ -55,6 +64,7 @@ cockpit-plugin.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
 uuid.workspace = true
 
 [[test]]
@@ -110,6 +120,14 @@ name = "recording_diff"
 path = "tests/contract/recording_diff.rs"
 
 [[test]]
+name = "recording_migration"
+path = "tests/contract/recording_migration.rs"
+
+[[test]]
+name = "influence_rules"
+path = "tests/contract/influence_rules.rs"
+
+[[test]]
 name = "runner_restart"
 path = "tests/contract/runner_restart.rs"
 
@@ -120,3 +138,7 @@ path = "tests/contract/benchmark_report.rs"
 [[test]]
 name = "rule_agent_smoke"
 path = "tests/integration/rule_agent_smoke.rs"
+
+[[test]]
+name = "live_agent_run"
+path = "tests/integration/live_agent_run.rs"

@@ -99,6 +99,64 @@ impl RecordingQueue {
     pub fn policy(&self) -> RecordingQueuePolicy {
         self.policy
     }
+
+    pub fn depth(&self) -> usize {
+        self.entries.len()
+    }
+}
+
+/// An asynchronous recording sink whose consumer can lag behind the producer.
+///
+/// The synchronous handler path drains the queue immediately after every push,
+/// so sustained overload never triggers there. This sink models a slow async
+/// store consumer: `push` enqueues under the bounded policy, while `drain_one`
+/// represents a single unit of consumer progress. When the producer outpaces
+/// the consumer, the bounded overflow policy (`Paused`/`Failed`/`Dropped`)
+/// is exercised for real.
+#[derive(Debug)]
+pub struct AsyncRecordingSink {
+    queue: RecordingQueue,
+    committed: Vec<StepRecord>,
+}
+
+impl AsyncRecordingSink {
+    pub fn new(capacity: usize, policy: RecordingQueuePolicy) -> Self {
+        Self {
+            queue: RecordingQueue::new(capacity, policy),
+            committed: Vec::new(),
+        }
+    }
+
+    /// Enqueue a step for asynchronous persistence, returning the bounded
+    /// overflow outcome.
+    pub fn push(&mut self, step: StepRecord) -> RecordingQueueOutcome {
+        self.queue.push(step)
+    }
+
+    /// Make one unit of consumer progress by committing the oldest queued step.
+    /// Returns `true` if a step was committed.
+    pub fn drain_one(&mut self) -> bool {
+        match self.queue.pop() {
+            Some(step) => {
+                self.committed.push(step);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Drain all currently queued steps (consumer fully catches up).
+    pub fn drain_all(&mut self) {
+        while self.drain_one() {}
+    }
+
+    pub fn committed(&self) -> &[StepRecord] {
+        &self.committed
+    }
+
+    pub fn health(&self) -> RecordingQueueHealth {
+        self.queue.health()
+    }
 }
 
 #[cfg(test)]

@@ -5,6 +5,13 @@ edition.workspace = true
 rust-version.workspace = true
 publish = false
 
+[features]
+# Opt-in wiring of the real iota-core ACP backend. The default build keeps the
+# live driver backend-agnostic so `cargo test --workspace` stays deterministic
+# and offline.
+default = []
+live-acp = []
+
 [dependencies]
 cockpit-simulation-core.workspace = true
 iota-core.workspace = true
@@ -12,3 +19,8 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
+
+[dev-dependencies]
+cockpit-scenario.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }

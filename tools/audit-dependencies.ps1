@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $metadata = cargo metadata --format-version 1 | ConvertFrom-Json
 $sympantosPackages = @(
   $metadata.packages | Where-Object {
-    $_.source -like "*github.com/feuyeux/iota-sympantos*"
+    $_.source -like "*iota-sympantos*"
   }
 )
 

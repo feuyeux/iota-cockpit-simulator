@@ -1,6 +1,7 @@
 mod runner_commands;
 
 use runner_commands::RunnerState;
+use std::path::PathBuf;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -11,8 +12,24 @@ pub fn run() {
             .map(|duration| duration.as_nanos())
             .unwrap_or_default()
     );
+    
+    // Capture workspace root at startup
+    // In dev mode, CARGO_MANIFEST_DIR points to apps/cockpit-desktop/src-tauri
+    // We need to go up to the repository root (../../..)
+    let workspace_root = std::env::var_os("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .and_then(|manifest_dir| {
+            // Go up from apps/cockpit-desktop/src-tauri to project root
+            manifest_dir.parent()?.parent()?.parent().map(|p| p.to_path_buf())
+        })
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."));
+    
+    eprintln!("Cockpit Desktop: workspace_root = {}", workspace_root.display());
+    
     tauri::Builder::default()
-        .manage(RunnerState::new(token))
+        .plugin(tauri_plugin_dialog::init())
+        .manage(RunnerState::new(token, workspace_root))
         .invoke_handler(tauri::generate_handler![
             runner_commands::connect_runner,
             runner_commands::validate_scenario,

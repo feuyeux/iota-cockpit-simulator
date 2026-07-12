@@ -1,6 +1,9 @@
 use cockpit_simulation_core::{Simulation, SimulationScenario, error::SimulationResult};
 
-use crate::Recording;
+use crate::{
+    Recording,
+    migrate::{CURRENT_RUNTIME_CONTRACT_VERSION, CURRENT_WORLD_MODEL_VERSION},
+};
 
 pub fn replay_recording(
     run_id: impl Into<String>,
@@ -12,9 +15,12 @@ pub fn replay_recording(
             "recording scenario hash does not match scenario".to_string(),
         ));
     }
-    if source.runtime_contract_version != 1 || source.world_model_version != 1 {
+    if source.runtime_contract_version != CURRENT_RUNTIME_CONTRACT_VERSION
+        || source.world_model_version != CURRENT_WORLD_MODEL_VERSION
+    {
         return Err(cockpit_simulation_core::SimulationError::InvalidScenario(
-            "recording runtime/world model version is incompatible".to_string(),
+            "recording runtime/world model version is incompatible; migrate the recording first"
+                .to_string(),
         ));
     }
     if source.clock != scenario.clock {

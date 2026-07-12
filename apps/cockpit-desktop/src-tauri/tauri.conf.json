@@ -21,11 +21,14 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": ["default"]
     }
   },
   "bundle": {
-    "active": false,
-    "icon": []
+    "active": true,
+    "targets": "all",
+    "icon": [],
+    "externalBin": ["binaries/cockpit-runner"]
   }
 }

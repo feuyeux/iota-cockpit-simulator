@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust gates (clean machine)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      # No cargo registry/git cache is restored, so this proves the pinned
+      # iota-core git dependency resolves and builds on a clean machine.
+      - name: Verify pinned iota-core resolves from a clean cache
+        run: cargo fetch --locked
+
+      - name: Confirm iota-core git revision is pinned
+        shell: bash
+        run: |
+          rev=$(cargo metadata --format-version 1 \
+            | tr ',' '\n' \
+            | grep -o 'iota-sympantos.git?rev=[0-9a-f]*' \
+            | head -n1)
+          echo "resolved: $rev"
+          case "$rev" in
+            *d29de2e6a65f887c8f5e0e7f0bbb387fd91b6dad*) echo "pinned revision confirmed" ;;
+            *) echo "iota-core is not pinned to the expected revision" >&2; exit 1 ;;
+          esac
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Dependency isolation audit
+        shell: pwsh
+        run: ./tools/audit-dependencies.ps1
+
+      - name: Runner smoke
+        run: |
+          cargo run -p cockpit-runner -- validate scenarios/smoke-in-cockpit.yaml
+          cargo run -p cockpit-runner -- run scenarios/smoke-in-cockpit.yaml --ticks 80
+          cargo run -p cockpit-runner -- run-live scenarios/smoke-in-cockpit.yaml --ticks 40
+
+  desktop:
+    name: Desktop gates
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/cockpit-desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/cockpit-desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

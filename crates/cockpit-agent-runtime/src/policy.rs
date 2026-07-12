@@ -184,6 +184,255 @@ impl AgentRuntimePolicy {
         )
     }
 
+    /// Like [`execute_cancellable`](Self::execute_cancellable), but honors mid-turn
+    /// cancellation.
+    ///
+    /// `is_cancelled` classifies an operation error as a deliberate
+    /// cancellation (e.g. iota-core's `TurnCancelled`). A cancelled turn stops
+    /// immediately with a [`TurnDisposition::Cancelled`] disposition: it is not
+    /// retried and does not trip the circuit breaker, because cancellation is an
+    /// intentional stop rather than a backend failure. If `cancel` is already
+    /// triggered before the turn starts, the operation is not invoked at all.
+    pub async fn execute_cancellable<F, Fut, T, E>(
+        &self,
+        mut operation: F,
+        is_cancelled: impl Fn(&E) -> bool,
+        cancel: &tokio_util::sync::CancellationToken,
+        fallback: impl FnOnce() -> T,
+    ) -> AgentTurn<T>
+    where
+        F: FnMut() -> Fut,
+        Fut: Future<Output = Result<T, E>>,
+        E: ToString,
+    {
+        let started = Instant::now();
+        let fallback = &mut Some(fallback);
+
+        if cancel.is_cancelled() {
+            return AgentTurn::fallback(
+                fallback.take().expect("fallback is available")(),
+                TurnDisposition::Cancelled {
+                    reason: "agent turn cancelled before start".to_string(),
+                },
+                started.elapsed(),
+            );
+        }
+        if self.circuit_is_open() {
+            return AgentTurn::fallback(
+                fallback.take().expect("fallback is available")(),
+                TurnDisposition::Fallback {
+                    policy: self.fallback.clone(),
+                    reason: "agent circuit breaker is open".to_string(),
+                },
+                started.elapsed(),
+            );
+        }
+
+        let mut last_error = "agent turn failed".to_string();
+        for attempt in 1..=self.max_attempts {
+            let permit = match timeout(
+                Duration::from_millis(self.timeout_ms),
+                self.permits.clone().acquire_owned(),
+            )
+            .await
+            {
+                Ok(Ok(permit)) => permit,
+                Ok(Err(error)) => {
+                    last_error = format!("runtime permit unavailable: {error}");
+                    break;
+                }
+                Err(_) => {
+                    last_error = "agent concurrency permit timed out".to_string();
+                    break;
+                }
+            };
+            // Race the operation against the cancellation token and the timeout.
+            let result = tokio::select! {
+                biased;
+                _ = cancel.cancelled() => {
+                    drop(permit);
+                    return AgentTurn::fallback(
+                        fallback.take().expect("fallback is available")(),
+                        TurnDisposition::Cancelled {
+                            reason: "agent turn cancelled mid-flight".to_string(),
+                        },
+                        started.elapsed(),
+                    );
+                }
+                result = timeout(Duration::from_millis(self.timeout_ms), operation()) => result,
+            };
+            drop(permit);
+            match result {
+                Ok(Ok(value)) => {
+                    self.record_success();
+                    return AgentTurn {
+                        value,
+                        disposition: TurnDisposition::Completed,
+                        elapsed_ms: started.elapsed().as_millis() as u64,
+                    };
+                }
+                Ok(Err(error)) => {
+                    // A cancellation reported by the backend is terminal, not a
+                    // retryable failure, and must not trip the circuit breaker.
+                    if is_cancelled(&error) {
+                        return AgentTurn::fallback(
+                            fallback.take().expect("fallback is available")(),
+                            TurnDisposition::Cancelled {
+                                reason: error.to_string(),
+                            },
+                            started.elapsed(),
+                        );
+                    }
+                    last_error = error.to_string();
+                }
+                Err(_) => last_error = format!("agent turn exceeded {}ms", self.timeout_ms),
+            }
+            if attempt < self.max_attempts {
+                continue;
+            }
+        }
+        self.record_failure();
+        AgentTurn::fallback(
+            fallback.take().expect("fallback is available")(),
+            TurnDisposition::Fallback {
+                policy: self.fallback.clone(),
+                reason: format!("{last_error} after {} attempt(s)", self.max_attempts),
+            },
+            started.elapsed(),
+        )
+    }
+
+    /// Execute a single cancellable operation without retry.
+    ///
+    /// This is a simpler version of `execute_cancellable` for operations that
+    /// shouldn't be retried. It accepts a future directly rather than a
+    /// retryable closure. Cancellation errors (marked with `__CANCELLED__:`)
+    /// result in a `Cancelled` disposition.
+    pub async fn execute_cancellable_once<F, T, E>(
+        &self,
+        operation: F,
+        cancel: &tokio_util::sync::CancellationToken,
+        fallback: impl FnOnce() -> T,
+    ) -> AgentTurn<T>
+    where
+        F: Future<Output = Result<T, E>>,
+        E: ToString,
+    {
+        let started = Instant::now();
+        let fallback = &mut Some(fallback);
+
+        if cancel.is_cancelled() {
+            return AgentTurn::fallback(
+                fallback.take().expect("fallback is available")(),
+                TurnDisposition::Cancelled {
+                    reason: "agent turn cancelled before start".to_string(),
+                },
+                started.elapsed(),
+            );
+        }
+        if self.circuit_is_open() {
+            return AgentTurn::fallback(
+                fallback.take().expect("fallback is available")(),
+                TurnDisposition::Fallback {
+                    policy: self.fallback.clone(),
+                    reason: "agent circuit breaker is open".to_string(),
+                },
+                started.elapsed(),
+            );
+        }
+
+        let permit = match timeout(
+            Duration::from_millis(self.timeout_ms),
+            self.permits.clone().acquire_owned(),
+        )
+        .await
+        {
+            Ok(Ok(permit)) => permit,
+            Ok(Err(error)) => {
+                return AgentTurn::fallback(
+                    fallback.take().expect("fallback is available")(),
+                    TurnDisposition::Fallback {
+                        policy: self.fallback.clone(),
+                        reason: format!("runtime permit unavailable: {error}"),
+                    },
+                    started.elapsed(),
+                );
+            }
+            Err(_) => {
+                return AgentTurn::fallback(
+                    fallback.take().expect("fallback is available")(),
+                    TurnDisposition::Fallback {
+                        policy: self.fallback.clone(),
+                        reason: "agent concurrency permit timed out".to_string(),
+                    },
+                    started.elapsed(),
+                );
+            }
+        };
+
+        // Race the operation against the cancellation token and the timeout.
+        let result = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => {
+                drop(permit);
+                return AgentTurn::fallback(
+                    fallback.take().expect("fallback is available")(),
+                    TurnDisposition::Cancelled {
+                        reason: "agent turn cancelled mid-flight".to_string(),
+                    },
+                    started.elapsed(),
+                );
+            }
+            result = timeout(Duration::from_millis(self.timeout_ms), operation) => result,
+        };
+        drop(permit);
+
+        match result {
+            Ok(Ok(value)) => {
+                self.record_success();
+                AgentTurn {
+                    value,
+                    disposition: TurnDisposition::Completed,
+                    elapsed_ms: started.elapsed().as_millis() as u64,
+                }
+            }
+            Ok(Err(error)) => {
+                let error_str = error.to_string();
+                // Check for tagged cancellation
+                if error_str.starts_with("__CANCELLED__:") {
+                    AgentTurn::fallback(
+                        fallback.take().expect("fallback is available")(),
+                        TurnDisposition::Cancelled {
+                            reason: error_str.trim_start_matches("__CANCELLED__:").to_string(),
+                        },
+                        started.elapsed(),
+                    )
+                } else {
+                    self.record_failure();
+                    AgentTurn::fallback(
+                        fallback.take().expect("fallback is available")(),
+                        TurnDisposition::Fallback {
+                            policy: self.fallback.clone(),
+                            reason: error_str,
+                        },
+                        started.elapsed(),
+                    )
+                }
+            }
+            Err(_) => {
+                self.record_failure();
+                AgentTurn::fallback(
+                    fallback.take().expect("fallback is available")(),
+                    TurnDisposition::Fallback {
+                        policy: self.fallback.clone(),
+                        reason: format!("agent turn exceeded {}ms", self.timeout_ms),
+                    },
+                    started.elapsed(),
+                )
+            }
+        }
+    }
+
     fn circuit_is_open(&self) -> bool {
         let mut circuit = self
             .circuit
@@ -232,6 +481,11 @@ pub enum TurnDisposition {
     Completed,
     Fallback {
         policy: FallbackPolicy,
+        reason: String,
+    },
+    /// The turn was deliberately cancelled mid-flight (distinct from a timeout
+    /// or backend error). Carries the reason for durable evidence.
+    Cancelled {
         reason: String,
     },
 }

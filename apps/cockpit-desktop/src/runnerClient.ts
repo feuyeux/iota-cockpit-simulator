@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import type {
   RecordingDiff,
   RunnerEventBatch,
@@ -32,6 +33,8 @@ export interface RunnerClient {
   diffRecordings(sourceRecordingPath: string, candidateRecordingPath: string): Promise<RecordingDiff>;
   snapshot(cursor?: number): Promise<RunnerEventBatch>;
   simulationSnapshot(): Promise<WorldSnapshot>;
+  openScenarioFilePicker(): Promise<string | null>;
+  openRecordingFilePicker(): Promise<string | null>;
 }
 
 export const runnerClient: RunnerClient = {
@@ -107,5 +110,33 @@ export const runnerClient: RunnerClient = {
   },
   async simulationSnapshot() {
     return invokeRunner<WorldSnapshot>("get_simulation_snapshot");
-  }
+  },
+  async openScenarioFilePicker() {
+    if (!isTauri()) return null;
+    const result = await open({
+      multiple: false,
+      directory: false,
+      filters: [
+        { name: "YAML Scenarios", extensions: ["yaml", "yml"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+    if (!result) return null;
+    if (typeof result === "string") return result;
+    return (result as { path: string }).path ?? null;
+  },
+  async openRecordingFilePicker() {
+    if (!isTauri()) return null;
+    const result = await open({
+      multiple: false,
+      directory: false,
+      filters: [
+        { name: "Recording Files", extensions: ["json", "jsonl"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+    if (!result) return null;
+    if (typeof result === "string") return result;
+    return (result as { path: string }).path ?? null;
+  },
 };

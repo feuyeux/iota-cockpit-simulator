@@ -8,6 +8,7 @@ use crate::{
     clock::{ClockConfig, RunStatus},
     error::{SimulationError, SimulationResult},
     event::{EventEnvelope, EventPayload, ToolCallTrace},
+    influence::{ConflictPolicy, InfluenceRule, arbitrate, schedule_due},
     sensor::Observation,
     world::{
         AlarmState, DeviceLifecycle, DeviceState, EnvironmentState, HumanState, WorldSnapshot,
@@ -39,6 +40,18 @@ pub struct SimulationScenario {
     #[serde(default)]
     pub agents: Vec<AgentGrant>,
     pub shutdown_deadline_ticks: u64,
+    /// Scheduled, versioned influence rules applied during tick commit. Empty by
+    /// default, so scenarios without influences keep identical tick behavior.
+    #[serde(default)]
+    pub influences: Vec<InfluenceRule>,
+    /// Conflict policy used when multiple influence rules target the same
+    /// component in one tick.
+    #[serde(default = "default_conflict_policy")]
+    pub conflict_policy: ConflictPolicy,
+}
+
+fn default_conflict_policy() -> ConflictPolicy {
+    ConflictPolicy::RejectConflicting
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -293,6 +306,7 @@ impl Simulation {
             }
         }
 
+        self.apply_influences(tick, &mut events);
         self.apply_environment(&mut events);
         self.apply_human_influence(&mut events);
         self.apply_pending_actions(&mut events);
@@ -360,20 +374,12 @@ impl Simulation {
         }
         for diff in diffs {
             let value = diff.value.as_f64().expect("state diff value is validated");
-            match (diff.entity_id.as_str(), diff.component_path.as_str()) {
-                ("cabin", "environment.smokeDensity") => {
-                    self.snapshot.environment.smoke_density = value
-                }
-                ("cabin", "environment.visibility") => self.snapshot.environment.visibility = value,
-                ("cabin", "environment.temperatureC") => {
-                    self.snapshot.environment.temperature_c = value
-                }
-                ("pilot-1", "pilot.stress") => self.snapshot.pilot.stress = value,
-                ("pilot-1", "pilot.attention") => self.snapshot.pilot.attention = value,
-                ("engine-1", "engine.health") => self.snapshot.engine.health = value,
-                ("alarm-1", "alarm.active") => self.snapshot.alarm.active = value > 0.5,
-                _ => unreachable!("state diff is validated"),
-            }
+            write_component_value(
+                &mut self.snapshot,
+                &diff.entity_id,
+                &diff.component_path,
+                value,
+            );
             events.push(self.event(
                 "StateDiffApplied",
                 &diff.source_id,
@@ -383,6 +389,73 @@ impl Simulation {
             ));
         }
         Ok(())
+    }
+
+    /// Apply the scheduled influence rules due this tick under the scenario's
+    /// conflict policy. No-op when the scenario declares no influences, so
+    /// replay hashes are unchanged for scenarios without influence rules.
+    fn apply_influences(&mut self, tick: u64, events: &mut Vec<EventEnvelope>) {
+        if self.scenario.influences.is_empty() {
+            return;
+        }
+        let due = schedule_due(&self.scenario.influences, tick);
+        if due.is_empty() {
+            return;
+        }
+        let outcome = arbitrate(&due, self.scenario.conflict_policy);
+
+        // Emit a stable rejection event for every rule that lost arbitration.
+        for decision in &outcome.decisions {
+            if !decision.applied {
+                events.push(self.event_with_error(
+                    "InfluenceRejected",
+                    "influence-system",
+                    Some(&decision.entity_id),
+                    decision.rejected_reason.clone(),
+                    "influence rule rejected by deterministic arbitration",
+                ));
+            }
+        }
+
+        for rule in &outcome.winners {
+            let current =
+                read_component_value(&self.snapshot, &rule.entity_id, &rule.component_path);
+            let target = current.map(|value| rule.op.resolve(value));
+            let applied = match target {
+                Some(target)
+                    if component_value_in_range(
+                        &rule.entity_id,
+                        &rule.component_path,
+                        target,
+                    ) =>
+                {
+                    write_component_value(
+                        &mut self.snapshot,
+                        &rule.entity_id,
+                        &rule.component_path,
+                        target,
+                    );
+                    events.push(self.event(
+                        "InfluenceApplied",
+                        "influence-system",
+                        Some(&rule.entity_id),
+                        Some(target),
+                        "scheduled influence rule applied during tick commit",
+                    ));
+                    true
+                }
+                _ => false,
+            };
+            if !applied {
+                events.push(self.event_with_error(
+                    "InfluenceRejected",
+                    "influence-system",
+                    Some(&rule.entity_id),
+                    Some("influence target is out of range or unknown".to_string()),
+                    "influence rule produced an invalid component value",
+                ));
+            }
+        }
     }
 
     fn apply_fault(&mut self, fault: &Fault, events: &mut Vec<EventEnvelope>) {
@@ -573,7 +646,20 @@ fn validate_state_diff(diff: &StateDiff) -> SimulationResult<()> {
             "state diff value must be numeric".to_string(),
         ));
     };
-    let valid = match (diff.entity_id.as_str(), diff.component_path.as_str()) {
+    component_value_in_range(&diff.entity_id, &diff.component_path, value)
+        .then_some(())
+        .ok_or_else(|| {
+            SimulationError::InvalidScenario(
+                "state diff entity, path, or value is invalid".to_string(),
+            )
+        })
+}
+
+/// Whether `value` is within the allowed range for a writable component. Shared
+/// by external StateDiff validation and scheduled influence application so both
+/// paths honor identical bounds.
+fn component_value_in_range(entity_id: &str, component_path: &str, value: f64) -> bool {
+    match (entity_id, component_path) {
         ("cabin", "environment.smokeDensity") => (0.0..=3.0).contains(&value),
         ("cabin", "environment.visibility")
         | ("pilot-1", "pilot.stress")
@@ -582,8 +668,39 @@ fn validate_state_diff(diff: &StateDiff) -> SimulationResult<()> {
         | ("alarm-1", "alarm.active") => (0.0..=1.0).contains(&value),
         ("cabin", "environment.temperatureC") => (-80.0..=100.0).contains(&value),
         _ => false,
-    };
-    valid.then_some(()).ok_or_else(|| {
-        SimulationError::InvalidScenario("state diff entity, path, or value is invalid".to_string())
-    })
+    }
+}
+
+/// Read the current numeric value of a writable component, if the path is known.
+fn read_component_value(snapshot: &WorldSnapshot, entity_id: &str, component_path: &str) -> Option<f64> {
+    match (entity_id, component_path) {
+        ("cabin", "environment.smokeDensity") => Some(snapshot.environment.smoke_density),
+        ("cabin", "environment.visibility") => Some(snapshot.environment.visibility),
+        ("cabin", "environment.temperatureC") => Some(snapshot.environment.temperature_c),
+        ("pilot-1", "pilot.stress") => Some(snapshot.pilot.stress),
+        ("pilot-1", "pilot.attention") => Some(snapshot.pilot.attention),
+        ("engine-1", "engine.health") => Some(snapshot.engine.health),
+        ("alarm-1", "alarm.active") => Some(if snapshot.alarm.active { 1.0 } else { 0.0 }),
+        _ => None,
+    }
+}
+
+/// Write a validated numeric value to a writable component. The caller must have
+/// already confirmed the path is known and the value is in range.
+fn write_component_value(
+    snapshot: &mut WorldSnapshot,
+    entity_id: &str,
+    component_path: &str,
+    value: f64,
+) {
+    match (entity_id, component_path) {
+        ("cabin", "environment.smokeDensity") => snapshot.environment.smoke_density = value,
+        ("cabin", "environment.visibility") => snapshot.environment.visibility = value,
+        ("cabin", "environment.temperatureC") => snapshot.environment.temperature_c = value,
+        ("pilot-1", "pilot.stress") => snapshot.pilot.stress = value,
+        ("pilot-1", "pilot.attention") => snapshot.pilot.attention = value,
+        ("engine-1", "engine.health") => snapshot.engine.health = value,
+        ("alarm-1", "alarm.active") => snapshot.alarm.active = value > 0.5,
+        _ => unreachable!("component path is validated before write"),
+    }
 }

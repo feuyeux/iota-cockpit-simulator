@@ -12,10 +12,12 @@ use serde_json::{Value, json};
 
 pub mod acp_adapter;
 pub mod iota_core_adapter;
+pub mod live;
 pub mod multi_agent;
 pub mod policy;
 pub mod skill;
 
+pub use live::{LiveAgentDriver, disposition_label};
 pub use multi_agent::{AgentActionBatch, MultiAgentCoordinator};
 pub use policy::{AgentRuntimePolicy, AgentTurn, FallbackPolicy, TurnDisposition};
 

@@ -59,6 +59,20 @@ impl PluginExecutor for StaticExecutor {
     }
 }
 
+struct SlowExecutor {
+    sleep_ms: u64,
+}
+
+impl PluginExecutor for SlowExecutor {
+    fn tick(
+        &mut self,
+        _snapshot: &cockpit_simulation_core::WorldSnapshot,
+    ) -> Result<Vec<StateDiff>, String> {
+        std::thread::sleep(std::time::Duration::from_millis(self.sleep_ms));
+        Ok(Vec::new())
+    }
+}
+
 #[test]
 fn valid_manifest_loads_and_state_diff_is_scoped() {
     let directory = plugin_dir("valid");
@@ -175,6 +189,40 @@ fn plugin_tick_output_is_validated_and_failures_disable_the_plugin() {
     assert_eq!(
         host.get("smoke-plugin").map(|plugin| &plugin.status),
         Some(&PluginStatus::Disabled)
+    );
+    let _ = fs::remove_dir_all(directory);
+}
+
+#[test]
+fn plugin_tick_over_budget_fails_closed() {
+    let directory = plugin_dir("budget");
+    fs::write(
+        directory.join("plugin.json"),
+        manifest_bytes(base_manifest(vec![PluginPermission::WorldWrite])),
+    )
+    .expect("manifest writes");
+    let mut host = PluginHost::default();
+    let policy = PluginPolicy {
+        allowed_permissions: [PluginPermission::WorldRead, PluginPermission::WorldWrite]
+            .into_iter()
+            .collect(),
+        tick_budget_ms: Some(5),
+        ..PluginPolicy::default()
+    };
+    assert!(host.discover(&directory, &policy).is_empty());
+    let scenario = load_scenario("scenarios/smoke-in-cockpit.yaml").expect("scenario loads");
+    let simulation = Simulation::new("plugin-run", scenario);
+
+    let mut slow = SlowExecutor { sleep_ms: 40 };
+    let outcome = host.run_tick("smoke-plugin", &simulation.snapshot, &mut slow, &policy);
+    assert!(matches!(
+        outcome,
+        PluginTickOutcome::Failed(ref failure) if failure.reason.contains("budget")
+    ));
+    assert_eq!(
+        host.get("smoke-plugin").map(|plugin| &plugin.status),
+        Some(&PluginStatus::Disabled),
+        "an over-budget plugin is disabled by the failure policy"
     );
     let _ = fs::remove_dir_all(directory);
 }

@@ -5,6 +5,13 @@ edition.workspace = true
 rust-version.workspace = true
 publish = false
 
+[features]
+# Forward the opt-in real iota-core ACP backend to the agent runtime. Without
+# it, `run-live` exercises the full policy/recording path with a synthetic
+# backend so the default build stays deterministic and offline.
+default = []
+live-acp = ["cockpit-agent-runtime/live-acp"]
+
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true

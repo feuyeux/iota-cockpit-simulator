@@ -17,11 +17,37 @@ pub async fn serve(bind: &str, session_token: impl Into<String>) -> io::Result<(
     serve_listener(listener, session_token).await
 }
 
+/// Serve with an optional persistent recording store. When `database_path` is
+/// set, the served handler persists each committed tick so an external runner
+/// process can recover its snapshot and event cursor after a real restart.
+pub async fn serve_persistent(
+    bind: &str,
+    session_token: impl Into<String>,
+    database_path: Option<&str>,
+) -> io::Result<()> {
+    let listener = TcpListener::bind(bind).await?;
+    match database_path {
+        Some(path) => {
+            let handler = RunnerHandler::new_persistent(session_token, path)
+                .map_err(io::Error::other)?;
+            serve_listener_with(listener, handler).await
+        }
+        None => serve_listener(listener, session_token).await,
+    }
+}
+
 pub async fn serve_listener(
     listener: TcpListener,
     session_token: impl Into<String>,
 ) -> io::Result<()> {
-    let handler = Arc::new(Mutex::new(RunnerHandler::new(session_token)));
+    serve_listener_with(listener, RunnerHandler::new(session_token)).await
+}
+
+pub async fn serve_listener_with(
+    listener: TcpListener,
+    handler: RunnerHandler,
+) -> io::Result<()> {
+    let handler = Arc::new(Mutex::new(handler));
     loop {
         let (stream, _) = listener.accept().await?;
         let handler = Arc::clone(&handler);

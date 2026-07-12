@@ -1,6 +1,7 @@
 use std::{
     io::{BufRead, BufReader, Write},
     net::{SocketAddr, TcpStream},
+    path::{Path, PathBuf},
     process::{Child, Command},
     sync::Mutex,
     time::Duration,
@@ -30,10 +31,11 @@ pub struct RunnerState {
     transport: Mutex<RunnerTransport>,
     token: String,
     sequence: Mutex<u64>,
+    workspace_root: PathBuf,
 }
 
 impl RunnerState {
-    pub fn new(token: impl Into<String>) -> Self {
+    pub fn new(token: impl Into<String>, workspace_root: PathBuf) -> Self {
         let token = token.into();
         Self {
             transport: Mutex::new(RunnerTransport::Embedded(Box::new(RunnerHandler::new(
@@ -41,6 +43,20 @@ impl RunnerState {
             )))),
             token,
             sequence: Mutex::new(0),
+            workspace_root,
+        }
+    }
+    
+    /// Resolve a path relative to the workspace root if it's not already absolute
+    fn resolve_path(&self, path: &str) -> String {
+        let path_buf = Path::new(path);
+        if path_buf.is_absolute() {
+            path.to_string()
+        } else {
+            self.workspace_root
+                .join(path)
+                .to_string_lossy()
+                .to_string()
         }
     }
 
@@ -69,6 +85,13 @@ impl RunnerState {
         address: SocketAddr,
         token: &str,
     ) -> Result<RunnerTransport, String> {
+        // Persist committed ticks so the external runner process can recover its
+        // snapshot and event cursor if it is restarted (see the runner crate's
+        // process_restart_recovery integration test).
+        let recording_db = std::env::temp_dir()
+            .join("cockpit-runner-recording.sqlite")
+            .to_string_lossy()
+            .to_string();
         let child = Command::new(binary)
             .args([
                 "serve",
@@ -76,6 +99,8 @@ impl RunnerState {
                 &address.to_string(),
                 "--session-token",
                 token,
+                "--recording-db",
+                &recording_db,
             ])
             .spawn()
             .map_err(|error| format!("failed to start cockpit-runner: {error}"))?;
@@ -132,10 +157,10 @@ impl RunnerState {
 }
 
 fn request_process(address: SocketAddr, request: &RunnerRequest) -> Result<RunnerResponse, String> {
-    let mut stream = TcpStream::connect_timeout(&address, Duration::from_millis(500))
+    let mut stream = TcpStream::connect_timeout(&address, Duration::from_millis(1_000))
         .map_err(|error| format!("runner disconnected: {error}"))?;
     stream
-        .set_read_timeout(Some(Duration::from_millis(2_000)))
+        .set_read_timeout(Some(Duration::from_millis(5_000)))
         .map_err(|error| error.to_string())?;
     let mut encoded = serde_json::to_vec(request).map_err(|error| error.to_string())?;
     encoded.push(b'\n');
@@ -182,7 +207,10 @@ pub fn validate_scenario(
     state: tauri::State<'_, RunnerState>,
     path: String,
 ) -> Result<ScenarioSummary, String> {
-    serde_json::from_value(state.dispatch(RunnerCommand::ValidateScenario { path })?)
+    eprintln!("validate_scenario: input path = {}", path);
+    let resolved_path = state.resolve_path(&path);
+    eprintln!("validate_scenario: resolved path = {}", resolved_path);
+    serde_json::from_value(state.dispatch(RunnerCommand::ValidateScenario { path: resolved_path })?)
         .map_err(|error| error.to_string())
 }
 
@@ -191,8 +219,9 @@ pub fn create_simulation_run(
     state: tauri::State<'_, RunnerState>,
     path: String,
 ) -> Result<String, String> {
+    let resolved_path = state.resolve_path(&path);
     state
-        .dispatch(RunnerCommand::CreateSimulationRun { path })?
+        .dispatch(RunnerCommand::CreateSimulationRun { path: resolved_path })?
         .get("runId")
         .and_then(Value::as_str)
         .map(ToString::to_string)
@@ -225,9 +254,10 @@ pub fn resume_simulation(
     scenario_path: String,
     run_id: String,
 ) -> Result<(), String> {
+    let resolved_scenario_path = state.resolve_path(&scenario_path);
     state
         .dispatch(RunnerCommand::ResumeSimulation {
-            scenario_path,
+            scenario_path: resolved_scenario_path,
             run_id,
         })
         .map(|_| ())
@@ -271,9 +301,11 @@ pub fn start_replay(
     scenario_path: String,
     recording_path: String,
 ) -> Result<Value, String> {
+    let resolved_scenario_path = state.resolve_path(&scenario_path);
+    let resolved_recording_path = state.resolve_path(&recording_path);
     state.dispatch(RunnerCommand::StartReplay {
-        scenario_path,
-        recording_path,
+        scenario_path: resolved_scenario_path,
+        recording_path: resolved_recording_path,
     })
 }
 
@@ -283,9 +315,11 @@ pub fn diff_recordings(
     source_recording_path: String,
     candidate_recording_path: String,
 ) -> Result<Value, String> {
+    let resolved_source_path = state.resolve_path(&source_recording_path);
+    let resolved_candidate_path = state.resolve_path(&candidate_recording_path);
     state.dispatch(RunnerCommand::DiffRecordings {
-        source_recording_path,
-        candidate_recording_path,
+        source_recording_path: resolved_source_path,
+        candidate_recording_path: resolved_candidate_path,
     })
 }
 

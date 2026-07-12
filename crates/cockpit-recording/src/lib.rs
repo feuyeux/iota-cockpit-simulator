@@ -11,13 +11,19 @@ use cockpit_simulation_core::{
 use serde::{Deserialize, Serialize};
 
 pub mod diff;
+pub mod migrate;
 pub mod queue;
 pub mod replay;
 pub mod store;
 
 pub use diff::{RecordingDiff, RecordingMetrics, TickDiff, diff_recordings};
+pub use migrate::{
+    CURRENT_RUNTIME_CONTRACT_VERSION, CURRENT_SCHEMA_VERSION, CURRENT_WORLD_MODEL_VERSION,
+    MigrationError, MigrationReport, migrate_recording_bytes, migrate_recording_value,
+};
 pub use queue::{
-    RecordingQueue, RecordingQueueHealth, RecordingQueueOutcome, RecordingQueuePolicy,
+    AsyncRecordingSink, RecordingQueue, RecordingQueueHealth, RecordingQueueOutcome,
+    RecordingQueuePolicy,
 };
 pub use replay::replay_recording;
 pub use store::{PayloadStore, RecordingStore, RecordingStoreError};
@@ -41,9 +47,9 @@ pub struct Recording {
 impl Recording {
     pub fn new(run_id: impl Into<String>, scenario: &SimulationScenario) -> Self {
         Self {
-            schema_version: 1,
-            runtime_contract_version: 1,
-            world_model_version: 1,
+            schema_version: migrate::CURRENT_SCHEMA_VERSION,
+            runtime_contract_version: migrate::CURRENT_RUNTIME_CONTRACT_VERSION,
+            world_model_version: migrate::CURRENT_WORLD_MODEL_VERSION,
             application_commit: option_env!("COCKPIT_APPLICATION_COMMIT")
                 .unwrap_or("unknown")
                 .to_string(),

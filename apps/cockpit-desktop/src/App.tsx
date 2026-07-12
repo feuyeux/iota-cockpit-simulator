@@ -1,16 +1,44 @@
-import { useEffect, useReducer } from "react";
-import { Activity, AlertTriangle, Gauge, Link, Link2Off } from "lucide-react";
+import { useEffect, useReducer, useState } from "react";
+import { Activity, AlertTriangle, Gauge, Link, Link2Off, HelpCircle } from "lucide-react";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { KeyboardShortcutsHelp } from "./components/KeyboardShortcutsHelp";
 import { SimulationEvaluation } from "./components/SimulationEvaluation";
 import { SimulationRunControl } from "./components/SimulationRunControl";
 import { SimulationReplay } from "./components/SimulationReplay";
 import { SimulationTimeline } from "./components/SimulationTimeline";
 import { SimulationTrace } from "./components/SimulationTrace";
 import { SimulationWorldView } from "./components/SimulationWorldView";
+import { KEYBOARD_SHORTCUTS } from "./config/constants";
 import { runnerClient } from "./runnerClient";
 import { initialSimulationModel, simulationReducer } from "./state/simulationReducer";
+import { exponentialBackoff } from "./utils/reconnect";
+import { loadPersistedSession } from "./utils/storage";
 
 export function App() {
-  const [model, dispatch] = useReducer(simulationReducer, initialSimulationModel);
+  const persisted = loadPersistedSession();
+  const [model, dispatch] = useReducer(
+    simulationReducer,
+    persisted
+      ? { ...initialSimulationModel, approvalRequired: persisted.approvalRequired }
+      : initialSimulationModel
+  );
+  const [showHelp, setShowHelp] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) {
+        return;
+      }
+      if (event.key === KEYBOARD_SHORTCUTS.HELP) {
+        event.preventDefault();
+        setShowHelp(true);
+      } else if (event.key === "Escape") {
+        setShowHelp(false);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,21 +67,24 @@ export function App() {
 
   async function reconnect() {
     dispatch({ type: "connectRequested" });
-    try {
+    const result = await exponentialBackoff(async () => {
       await runnerClient.connect();
-      dispatch({ type: "connected" });
       const batch = await runnerClient.snapshot(model.lastCursor);
       if (batch.resetRequired) {
         const snapshot = await runnerClient.simulationSnapshot();
         dispatch({ type: "snapshotReset", snapshot, cursor: batch.firstAvailableCursor - 1 });
       }
       for (const event of batch.events) dispatch({ type: "runnerEvent", event });
-    } catch (error) {
+    });
+
+    if (result.success) {
+      dispatch({ type: "connected" });
+    } else {
       dispatch({
         type: "disconnected",
         error: {
           code: "RUNNER_CONNECT_FAILED",
-          message: error instanceof Error ? error.message : "runner reconnect failed",
+          message: result.error?.message ?? `reconnect failed after ${result.attempts} attempts`,
           correlationId: "desktop-reconnect"
         }
       });
@@ -92,6 +123,13 @@ export function App() {
             <Gauge className="h-4 w-4 text-cyan-300" />
             tick {model.tick} / {model.simTimeMs}ms
           </span>
+          <button
+            aria-label="Keyboard shortcuts"
+            className="control-button h-7 w-7"
+            onClick={() => setShowHelp(true)}
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
         </div>
       </header>
 
@@ -106,15 +144,28 @@ export function App() {
       ) : null}
 
       <div className="grid gap-4 p-4 xl:grid-cols-[280px_minmax(460px,1fr)_360px]">
-        <SimulationRunControl model={model} dispatch={dispatch} />
-        <SimulationWorldView model={model} />
-        <SimulationEvaluation model={model} />
+        <ErrorBoundary>
+          <SimulationRunControl model={model} dispatch={dispatch} />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <SimulationWorldView model={model} />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <SimulationEvaluation model={model} />
+        </ErrorBoundary>
       </div>
       <div className="grid gap-4 px-4 pb-4 xl:grid-cols-2">
-        <SimulationTimeline model={model} />
-        <SimulationTrace model={model} dispatch={dispatch} />
-        <SimulationReplay model={model} dispatch={dispatch} />
+        <ErrorBoundary>
+          <SimulationTimeline model={model} />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <SimulationTrace model={model} dispatch={dispatch} />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <SimulationReplay model={model} dispatch={dispatch} />
+        </ErrorBoundary>
       </div>
+      <KeyboardShortcutsHelp visible={showHelp} onClose={() => setShowHelp(false)} />
     </main>
   );
 }

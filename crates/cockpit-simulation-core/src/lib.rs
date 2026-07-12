@@ -3,6 +3,7 @@ pub mod clock;
 pub mod error;
 pub mod event;
 pub mod id;
+pub mod influence;
 pub mod sensor;
 pub mod simulation;
 pub mod world;
@@ -13,6 +14,10 @@ pub use action::{
 pub use clock::{ClockConfig, ClockMode, RunStatus};
 pub use error::{SimulationError, SimulationResult};
 pub use event::{EventEnvelope, EventPayload, ToolCallTrace};
+pub use influence::{
+    ArbitrationOutcome, ConflictPolicy, InfluenceDecision, InfluenceOp, InfluenceRule,
+    InfluenceSchedule, Subscription, arbitrate, schedule_due,
+};
 pub use sensor::{Observation, SensorQuality};
 pub use simulation::{
     Fault, PluginFailureRecord, Simulation, SimulationScenario, StateDiff, StepRecord,

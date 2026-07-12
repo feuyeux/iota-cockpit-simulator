@@ -107,6 +107,14 @@ pub struct PluginPolicy {
     pub allowed_permissions: BTreeSet<PluginPermission>,
     pub require_signature: bool,
     pub failure_policy: PluginFailurePolicy,
+    /// Cooperative per-tick wall-clock budget in milliseconds. A plugin whose
+    /// `tick` returns after this budget is treated as a failure and handled by
+    /// `failure_policy`. `None` disables the budget.
+    ///
+    /// This is a cooperative budget: it bounds plugins that return but does not
+    /// preempt a hung plugin. OS-level preemption requires out-of-process
+    /// execution (see `## 36. 插件生命周期` / ADR in `doc/001.md`).
+    pub tick_budget_ms: Option<u64>,
 }
 
 impl Default for PluginPolicy {
@@ -116,6 +124,7 @@ impl Default for PluginPolicy {
             allowed_permissions: [PluginPermission::WorldRead].into_iter().collect(),
             require_signature: false,
             failure_policy: PluginFailurePolicy::DisablePlugin,
+            tick_budget_ms: Some(50),
         }
     }
 }
@@ -236,6 +245,7 @@ impl PluginHost {
             ));
         }
 
+        let started = std::time::Instant::now();
         let diffs = match executor.tick(snapshot) {
             Ok(diffs) => diffs,
             Err(reason) => {
@@ -244,6 +254,17 @@ impl PluginHost {
                 );
             }
         };
+        if let Some(budget_ms) = policy.tick_budget_ms {
+            let elapsed_ms = started.elapsed().as_millis();
+            if elapsed_ms > u128::from(budget_ms) {
+                return PluginTickOutcome::Failed(self.record_failure(
+                    plugin_id,
+                    &version,
+                    format!("plugin tick exceeded {budget_ms}ms budget ({elapsed_ms}ms)"),
+                    policy,
+                ));
+            }
+        }
         for diff in &diffs {
             if diff.plugin_id != plugin_id {
                 return PluginTickOutcome::Failed(self.record_failure(

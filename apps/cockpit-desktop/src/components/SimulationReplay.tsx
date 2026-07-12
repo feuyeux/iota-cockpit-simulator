@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { GitCompareArrows, Play } from "lucide-react";
+import { GitCompareArrows, Play, FolderOpen } from "lucide-react";
+import { useRunner } from "../hooks/useRunner";
 import { runnerClient } from "../runnerClient";
 import type { SimulationAction } from "../state/simulationReducer";
 import type { RecordingDiff, SimulationModel } from "../types/simulation";
@@ -38,17 +39,9 @@ function DiffSummary({ report }: { report: RecordingDiff }) {
 }
 
 export function SimulationReplay({ model, dispatch }: Props) {
+  const { syncEvents } = useRunner(model, dispatch);
   const [recordingPath, setRecordingPath] = useState("");
   const [candidatePath, setCandidatePath] = useState("");
-
-  async function syncEvents() {
-    const batch = await runnerClient.snapshot(model.lastCursor);
-    if (batch.resetRequired) {
-      const snapshot = await runnerClient.simulationSnapshot();
-      dispatch({ type: "snapshotReset", snapshot, cursor: batch.firstAvailableCursor - 1 });
-    }
-    for (const event of batch.events) dispatch({ type: "runnerEvent", event });
-  }
 
   async function replay() {
     if (!model.scenario || !recordingPath) return;
@@ -70,17 +63,34 @@ export function SimulationReplay({ model, dispatch }: Props) {
     }
   }
 
+  async function browseRecording(target: "source" | "candidate") {
+    const path = await runnerClient.openRecordingFilePicker();
+    if (path) {
+      if (target === "source") setRecordingPath(path);
+      else setCandidatePath(path);
+    }
+  }
+
   return (
     <section className="border border-zinc-800 bg-zinc-900/70">
       <div className="border-b border-zinc-800 px-3 py-2 text-sm font-medium">Replay</div>
       <div className="space-y-2 p-3">
-        <input
-          aria-label="Recording path"
-          className="h-8 w-full border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
-          placeholder="Recording path"
-          value={recordingPath}
-          onChange={(event) => setRecordingPath(event.target.value)}
-        />
+        <div className="flex gap-2">
+          <input
+            aria-label="Recording path"
+            className="h-8 flex-1 border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
+            placeholder="Recording path"
+            value={recordingPath}
+            onChange={(event) => setRecordingPath(event.target.value)}
+          />
+          <button
+            aria-label="Browse recording"
+            className="control-button h-8 w-8"
+            onClick={() => void browseRecording("source")}
+          >
+            <FolderOpen className="h-3 w-3" />
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <button aria-label="Replay recording" className="control-button" disabled={!model.scenario || !recordingPath} onClick={() => void replay()}>
             <Play className="h-4 w-4" />
@@ -89,13 +99,22 @@ export function SimulationReplay({ model, dispatch }: Props) {
             <GitCompareArrows className="h-4 w-4" />
           </button>
         </div>
-        <input
-          aria-label="Comparison recording path"
-          className="h-8 w-full border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
-          placeholder="Comparison recording path"
-          value={candidatePath}
-          onChange={(event) => setCandidatePath(event.target.value)}
-        />
+        <div className="flex gap-2">
+          <input
+            aria-label="Comparison recording path"
+            className="h-8 flex-1 border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
+            placeholder="Comparison recording path"
+            value={candidatePath}
+            onChange={(event) => setCandidatePath(event.target.value)}
+          />
+          <button
+            aria-label="Browse comparison recording"
+            className="control-button h-8 w-8"
+            onClick={() => void browseRecording("candidate")}
+          >
+            <FolderOpen className="h-3 w-3" />
+          </button>
+        </div>
         {model.replayDiff ? <DiffSummary report={model.replayDiff} /> : null}
       </div>
     </section>
