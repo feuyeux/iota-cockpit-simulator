@@ -89,13 +89,9 @@ async fn main() -> anyhow::Result<()> {
             session_token,
             recording_db,
         } => {
-            cockpit_runner::server::serve_persistent(
-                &bind,
-                session_token,
-                recording_db.as_deref(),
-            )
-            .await
-            .with_context(|| format!("failed to serve runner on {bind}"))?;
+            cockpit_runner::server::serve_persistent(&bind, session_token, recording_db.as_deref())
+                .await
+                .with_context(|| format!("failed to serve runner on {bind}"))?;
         }
         Command::Validate { scenario } => {
             let scenario = cockpit_scenario::load_scenario(&scenario)

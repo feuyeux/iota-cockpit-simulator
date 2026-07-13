@@ -135,7 +135,7 @@ impl IotaCoreAcpAdapter {
             .map_err(|error| AcpAdapterError::InvalidBackend(error.to_string()))?;
         let prompt = Self::build_prompt(observation, skill);
         let cwd = self.config.cwd.clone();
-        
+
         // Build the cancellable operation as a single future
         let operation = async {
             self.engine
@@ -151,15 +151,13 @@ impl IotaCoreAcpAdapter {
                     }
                 })
         };
-        
+
         // Use execute_cancellable_once which doesn't retry
         let turn = self
             .policy
-            .execute_cancellable_once(
-                operation,
-                cancel,
-                || AcpPromptOutput::synthetic(fallback_text()),
-            )
+            .execute_cancellable_once(operation, cancel, || {
+                AcpPromptOutput::synthetic(fallback_text())
+            })
             .await;
         Ok(self.shape_turn(turn))
     }

@@ -267,7 +267,10 @@ mod tests {
         assert!(at.is_due(3));
         assert!(!at.is_due(4));
 
-        let every = InfluenceSchedule::Every { start: 2, interval: 3 };
+        let every = InfluenceSchedule::Every {
+            start: 2,
+            interval: 3,
+        };
         assert!(every.is_due(2));
         assert!(every.is_due(5));
         assert!(every.is_due(8));
@@ -277,7 +280,10 @@ mod tests {
 
     #[test]
     fn every_with_zero_interval_is_treated_as_one() {
-        let every = InfluenceSchedule::Every { start: 0, interval: 0 };
+        let every = InfluenceSchedule::Every {
+            start: 0,
+            interval: 0,
+        };
         assert!(every.is_due(0));
         assert!(every.is_due(1));
     }

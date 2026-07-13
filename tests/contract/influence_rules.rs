@@ -1,7 +1,7 @@
+use cockpit_scenario::load_scenario;
 use cockpit_simulation_core::{
     ConflictPolicy, InfluenceOp, InfluenceRule, InfluenceSchedule, Simulation, SimulationScenario,
 };
-use cockpit_scenario::load_scenario;
 
 fn base_scenario() -> SimulationScenario {
     load_scenario("scenarios/smoke-in-cockpit.yaml").expect("scenario loads")
@@ -96,8 +96,7 @@ fn highest_priority_wins_is_deterministic() {
     // Highest-priority rule "b" (0.8) wins in both runs.
     assert!((first.snapshot.pilot.attention - 0.8).abs() < 1e-9);
     assert_eq!(
-        first.snapshot.pilot.attention,
-        second.snapshot.pilot.attention,
+        first.snapshot.pilot.attention, second.snapshot.pilot.attention,
         "arbitration is deterministic across runs"
     );
 }
@@ -108,9 +107,7 @@ fn scenario_without_influences_is_unchanged() {
     // existing replay hashes are unaffected.
     let events = run(base_scenario(), 10);
     assert!(
-        !events
-            .iter()
-            .any(|event| event.starts_with("Influence")),
+        !events.iter().any(|event| event.starts_with("Influence")),
         "no influence events without configured rules"
     );
 }

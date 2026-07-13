@@ -1,6 +1,4 @@
-use cockpit_agent_runtime::{
-    AgentRuntimePolicy, FallbackPolicy, LiveAgentDriver, LocalMcpServer,
-};
+use cockpit_agent_runtime::{AgentRuntimePolicy, FallbackPolicy, LiveAgentDriver, LocalMcpServer};
 use cockpit_recording::Recording;
 use cockpit_scenario::load_scenario;
 use cockpit_simulation_core::{Simulation, clock::RunStatus};

@@ -134,7 +134,7 @@ fn migrate_v0_to_v1(object: &mut Map<String, Value>) {
 }
 
 fn fill_default(object: &mut Map<String, Value>, key: &str, default: Value) {
-    if !object.get(key).is_some_and(|value| !value.is_null()) {
+    if object.get(key).is_none_or(Value::is_null) {
         object.insert(key.to_string(), default);
     }
 }

@@ -423,11 +423,7 @@ impl Simulation {
             let target = current.map(|value| rule.op.resolve(value));
             let applied = match target {
                 Some(target)
-                    if component_value_in_range(
-                        &rule.entity_id,
-                        &rule.component_path,
-                        target,
-                    ) =>
+                    if component_value_in_range(&rule.entity_id, &rule.component_path, target) =>
                 {
                     write_component_value(
                         &mut self.snapshot,
@@ -672,7 +668,11 @@ fn component_value_in_range(entity_id: &str, component_path: &str, value: f64) -
 }
 
 /// Read the current numeric value of a writable component, if the path is known.
-fn read_component_value(snapshot: &WorldSnapshot, entity_id: &str, component_path: &str) -> Option<f64> {
+fn read_component_value(
+    snapshot: &WorldSnapshot,
+    entity_id: &str,
+    component_path: &str,
+) -> Option<f64> {
     match (entity_id, component_path) {
         ("cabin", "environment.smokeDensity") => Some(snapshot.environment.smoke_density),
         ("cabin", "environment.visibility") => Some(snapshot.environment.visibility),

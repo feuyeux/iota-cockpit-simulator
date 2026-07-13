@@ -29,8 +29,7 @@ fn sqlite_recording_round_trip_preserves_tick_evidence() {
 #[test]
 fn sustained_async_overload_triggers_bounded_queue_policy() {
     let scenario = load_scenario("scenarios/smoke-in-cockpit.yaml").expect("scenario loads");
-    let recording =
-        run_rule_agent_recording("overload-run", scenario, 16).expect("run completes");
+    let recording = run_rule_agent_recording("overload-run", scenario, 16).expect("run completes");
     assert!(recording.ticks.len() >= 4, "need several steps to overflow");
 
     // A slow async consumer that never makes progress while the producer keeps
@@ -58,8 +57,7 @@ fn sustained_async_overload_triggers_bounded_queue_policy() {
 #[test]
 fn async_consumer_catching_up_commits_every_step() {
     let scenario = load_scenario("scenarios/smoke-in-cockpit.yaml").expect("scenario loads");
-    let recording =
-        run_rule_agent_recording("drain-run", scenario, 10).expect("run completes");
+    let recording = run_rule_agent_recording("drain-run", scenario, 10).expect("run completes");
 
     // Consumer keeps pace: drain one step after each push so the queue never
     // overflows and every step is eventually committed.

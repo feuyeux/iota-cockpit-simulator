@@ -93,7 +93,10 @@ async fn pre_cancelled_token_skips_the_operation() {
         )
         .await;
     assert_eq!(turn.value, "rule-agent");
-    assert!(matches!(turn.disposition, TurnDisposition::Cancelled { .. }));
+    assert!(matches!(
+        turn.disposition,
+        TurnDisposition::Cancelled { .. }
+    ));
     assert_eq!(
         attempts.load(Ordering::SeqCst),
         0,
@@ -118,7 +121,10 @@ async fn backend_reported_cancellation_is_terminal_and_not_retried() {
             || "rule-agent",
         )
         .await;
-    assert!(matches!(turn.disposition, TurnDisposition::Cancelled { .. }));
+    assert!(matches!(
+        turn.disposition,
+        TurnDisposition::Cancelled { .. }
+    ));
     assert_eq!(
         attempts.load(Ordering::SeqCst),
         1,
@@ -147,6 +153,9 @@ async fn token_fired_mid_flight_cancels_the_turn() {
         )
         .await;
     assert_eq!(turn.value, "rule-agent");
-    assert!(matches!(turn.disposition, TurnDisposition::Cancelled { .. }));
+    assert!(matches!(
+        turn.disposition,
+        TurnDisposition::Cancelled { .. }
+    ));
     assert!(turn.elapsed_ms < 400, "cancellation returns promptly");
 }

@@ -42,7 +42,11 @@ fn spawn_runner(address: &SocketAddr, database: &str) -> Child {
         .expect("cockpit-runner starts");
     // Wait for the loopback listener to accept connections.
     let connected = (0..100).any(|_| {
-        TcpStream::connect_timeout(address, Duration::from_millis(50)).is_ok()
+        let connected = TcpStream::connect_timeout(address, Duration::from_millis(50)).is_ok();
+        if !connected {
+            sleep(Duration::from_millis(20));
+        }
+        connected
     });
     assert!(connected, "runner did not accept loopback connections");
     child
@@ -79,7 +83,10 @@ fn external_runner_process_recovers_after_restart() {
         listener.local_addr().expect("addr")
     };
     let database = std::env::temp_dir()
-        .join(format!("cockpit-restart-proc-{}.sqlite", std::process::id()))
+        .join(format!(
+            "cockpit-restart-proc-{}.sqlite",
+            std::process::id()
+        ))
         .to_string_lossy()
         .to_string();
     let scenario = scenario_path();
@@ -87,9 +94,12 @@ fn external_runner_process_recovers_after_restart() {
     // First process: create, start, step a few times.
     let mut first = spawn_runner(&address, &database);
     assert_eq!(
-        request(&address, json!({ "type": "CreateSimulationRun", "path": scenario }))
-            .get("ok")
-            .and_then(Value::as_bool),
+        request(
+            &address,
+            json!({ "type": "CreateSimulationRun", "path": scenario })
+        )
+        .get("ok")
+        .and_then(Value::as_bool),
         Some(true)
     );
     assert_eq!(

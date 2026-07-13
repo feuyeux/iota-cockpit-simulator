@@ -42,7 +42,10 @@ fn legacy_recording_migrates_and_replays() {
     // The migrated recording is now replayable and reproduces the same final
     // snapshot hash.
     let replay = replay_recording("migration-replay", scenario(), &migrated).expect("replays");
-    assert_eq!(replay.final_snapshot_hash().map(str::to_string), expected_hash);
+    assert_eq!(
+        replay.final_snapshot_hash().map(str::to_string),
+        expected_hash
+    );
 }
 
 /// A current-schema recording round-trips unchanged through migration.
