@@ -25,7 +25,8 @@ fn recording_payloads_redact_nested_secrets_before_writing_to_disk() {
         "nested": {
             "apiKey": "api-key-must-not-persist",
             "auth_token": "token-must-not-persist",
-            "prompt": "complete-private-prompt"
+            "prompt": "complete-private-prompt",
+            "credential": "credential-must-not-persist"
         }
     });
     trace.result = json!({ "secret": "secret-must-not-persist" });
@@ -60,6 +61,10 @@ fn recording_payloads_redact_nested_secrets_before_writing_to_disk() {
         Value::String("[REDACTED]".to_string())
     );
     assert_eq!(
+        trace.arguments["nested"]["credential"],
+        Value::String("[REDACTED]".to_string())
+    );
+    assert_eq!(
         trace.result["secret"],
         Value::String("[REDACTED]".to_string())
     );
@@ -79,6 +84,7 @@ fn recording_payloads_redact_nested_secrets_before_writing_to_disk() {
         "secret-must-not-persist",
         "prompt-must-not-persist",
         "token-must-not-persist",
+        "credential-must-not-persist",
     ] {
         assert!(!stored.contains(secret), "recording contains {secret}");
     }

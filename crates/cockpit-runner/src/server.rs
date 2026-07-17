@@ -78,11 +78,19 @@ async fn handle_connection(
             RequestFrame::Data(bytes) => match serde_json::from_slice::<RunnerRequest>(&bytes) {
                 Ok(request)
                     if matches!(
-                        request.command,
+                        &request.command,
                         crate::ipc::proto::RunnerCommand::CancelLiveTurn
                     ) =>
                 {
                     cancel_live_turn_response(request, &session_token, &live_turn_control)
+                }
+                Ok(request)
+                    if matches!(
+                        &request.command,
+                        crate::ipc::proto::RunnerCommand::Ping { .. }
+                    ) =>
+                {
+                    ping_response(request, &session_token)
                 }
                 Ok(request) => handler.lock().await.dispatch_async(request).await,
                 Err(error) => RunnerResponse {
@@ -119,14 +127,14 @@ fn cancel_live_turn_response(
     live_turn_control: &LiveTurnControl,
 ) -> RunnerResponse {
     if request.version != IPC_VERSION {
-        return invalid_cancel_response(
+        return invalid_control_response(
             request.correlation_id,
             "IPC_VERSION_UNSUPPORTED",
             format!("supported IPC version is {IPC_VERSION}"),
         );
     }
     if request.session_token != session_token {
-        return invalid_cancel_response(
+        return invalid_control_response(
             request.correlation_id,
             "SESSION_UNAUTHORIZED",
             "session token is invalid".to_string(),
@@ -141,7 +149,35 @@ fn cancel_live_turn_response(
     }
 }
 
-fn invalid_cancel_response(correlation_id: String, code: &str, message: String) -> RunnerResponse {
+fn ping_response(request: RunnerRequest, session_token: &str) -> RunnerResponse {
+    if request.version != IPC_VERSION {
+        return invalid_control_response(
+            request.correlation_id,
+            "IPC_VERSION_UNSUPPORTED",
+            format!("supported IPC version is {IPC_VERSION}"),
+        );
+    }
+    if request.session_token != session_token {
+        return invalid_control_response(
+            request.correlation_id,
+            "SESSION_UNAUTHORIZED",
+            "session token is invalid".to_string(),
+        );
+    }
+    let seq = match request.command {
+        crate::ipc::proto::RunnerCommand::Ping { seq } => seq,
+        _ => unreachable!("ping_response only accepts Ping requests"),
+    };
+    RunnerResponse {
+        version: IPC_VERSION,
+        correlation_id: request.correlation_id,
+        ok: true,
+        result: Some(serde_json::json!({ "pong": true, "seq": seq })),
+        error: None,
+    }
+}
+
+fn invalid_control_response(correlation_id: String, code: &str, message: String) -> RunnerResponse {
     RunnerResponse {
         version: IPC_VERSION,
         correlation_id: correlation_id.clone(),
@@ -264,6 +300,63 @@ mod tests {
         assert!(response.ok);
         assert!(token.is_cancelled());
 
+        drop(handler_lock);
+        server.await.expect("server task joins");
+    }
+
+    #[tokio::test]
+    async fn ping_bypasses_a_busy_runner_handler() {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("listener binds");
+        let address = listener.local_addr().expect("listener address");
+        let control = LiveTurnControl::default();
+        let handler = Arc::new(Mutex::new(RunnerHandler::with_live_turn_control(
+            "test-token",
+            control.clone(),
+        )));
+        let handler_lock = handler.lock().await;
+        let server = tokio::spawn({
+            let handler = Arc::clone(&handler);
+            async move {
+                let (stream, _) = listener.accept().await.expect("connection accepted");
+                handle_connection(stream, handler, "test-token".to_string(), control)
+                    .await
+                    .expect("connection completes");
+            }
+        });
+
+        let mut stream = TcpStream::connect(address).await.expect("client connects");
+        let request = RunnerRequest {
+            version: IPC_VERSION,
+            session_token: "test-token".to_string(),
+            correlation_id: "ping-test".to_string(),
+            command: RunnerCommand::Ping { seq: 9 },
+        };
+        let mut encoded = serde_json::to_vec(&request).expect("request serializes");
+        encoded.push(b'\n');
+        stream.write_all(&encoded).await.expect("request writes");
+
+        let mut line = String::new();
+        timeout(
+            Duration::from_millis(250),
+            BufReader::new(&mut stream).read_line(&mut line),
+        )
+        .await
+        .expect("ping response is not blocked by the handler lock")
+        .expect("ping response reads");
+        let response: RunnerResponse = serde_json::from_str(&line).expect("response parses");
+        assert!(response.ok);
+        assert_eq!(
+            response
+                .result
+                .as_ref()
+                .and_then(|result| result.get("seq"))
+                .and_then(serde_json::Value::as_u64),
+            Some(9)
+        );
+
+        drop(stream);
         drop(handler_lock);
         server.await.expect("server task joins");
     }

@@ -8,6 +8,9 @@ describe("redact utilities", () => {
     expect(isSensitiveKey("AUTH_TOKEN")).toBe(true);
     expect(isSensitiveKey("hidden-reasoning")).toBe(true);
     expect(isSensitiveKey("userPrompt")).toBe(true);
+    expect(isSensitiveKey("credential")).toBe(true);
+    expect(isSensitiveKey("credentials")).toBe(true);
+    expect(isSensitiveKey("awsCredentials")).toBe(true);
     expect(isSensitiveKey("runId")).toBe(false);
     expect(isSensitiveKey("tick")).toBe(false);
   });

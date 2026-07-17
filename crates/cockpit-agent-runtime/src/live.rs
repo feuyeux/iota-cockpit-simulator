@@ -279,10 +279,14 @@ impl HumanAgentDriver {
                 let Some(command) = Command::from_wire_name(&action.command) else {
                     continue;
                 };
-                let human = simulation
-                    .snapshot
-                    .human(human_id)
-                    .expect("human was collected from snapshot");
+                let Some(human) = simulation.snapshot.human(human_id) else {
+                    // The human was present when this turn began, but an
+                    // `await` boundary sits between that snapshot read and
+                    // here. Treat a since-removed human the same way as an
+                    // unauthorized command: drop the action and keep going
+                    // rather than panicking mid-tick.
+                    continue;
+                };
                 if !human
                     .action_capabilities
                     .iter()
@@ -559,11 +563,31 @@ fn normalize_missing_narrative(value: &mut Value) -> Result<(), String> {
 
 /// Find the first top-level `{...}` object in `text`, tolerating leading or
 /// trailing prose around the JSON block.
+///
+/// Brace-depth counting must track whether the scanner is currently inside a
+/// JSON string literal. A model's `narrative`/`utterance` text is ordinary
+/// prose and can legitimately contain a literal `{` or `}` character (for
+/// example, describing a labeled control as `the {A} switch`). Without
+/// string-awareness, such a character would be counted as a structural brace
+/// and could close the object early, truncating the JSON mid-value and
+/// causing a spurious parse failure on an otherwise well-formed decision.
 fn extract_json_object(text: &str) -> Option<&str> {
     let start = text.find('{')?;
     let mut depth = 0i32;
+    let mut in_string = false;
+    let mut escaped = false;
     for (offset, ch) in text[start..].char_indices() {
+        if in_string {
+            match ch {
+                _ if escaped => escaped = false,
+                '\\' => escaped = true,
+                '"' => in_string = false,
+                _ => {}
+            }
+            continue;
+        }
         match ch {
+            '"' => in_string = true,
             '{' => depth += 1,
             '}' => {
                 depth -= 1;
@@ -642,6 +666,31 @@ mod tests {
         )
         .expect("ok");
         assert_eq!(decision.narrative, "opened the window");
+    }
+
+    #[test]
+    fn parse_decision_tolerates_literal_braces_inside_string_values() {
+        // A narrative or utterance is free-form prose and may legitimately
+        // contain a literal brace character, e.g. describing a labeled
+        // control. Brace-depth counting must not treat this as a
+        // structural JSON delimiter and truncate the object early.
+        let decision = parse_decision(
+            r#"{"narrative": "pressed the {A} switch", "utterance": "flip the {B} toggle"}"#,
+        )
+        .expect("a literal brace inside a JSON string value must not truncate the object");
+        assert_eq!(decision.narrative, "pressed the {A} switch");
+        assert_eq!(decision.utterance.as_deref(), Some("flip the {B} toggle"));
+    }
+
+    #[test]
+    fn parse_decision_tolerates_escaped_quotes_and_braces_inside_string_values() {
+        let decision =
+            parse_decision(r#"{"narrative": "the pilot said \"close the {door}\" calmly"}"#)
+                .expect("escaped quotes must not desynchronize string-boundary tracking");
+        assert_eq!(
+            decision.narrative,
+            "the pilot said \"close the {door}\" calmly"
+        );
     }
 
     #[test]

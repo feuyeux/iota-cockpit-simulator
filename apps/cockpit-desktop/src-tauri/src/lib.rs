@@ -30,7 +30,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
-            app.manage(RunnerState::new(token, scenario_root(app)));
+            let state = RunnerState::new(token, scenario_root(app));
+            let heartbeat_state = state.clone();
+            std::thread::spawn(move || heartbeat_state.run_heartbeat_loop());
+            app.manage(state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

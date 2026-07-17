@@ -13,13 +13,15 @@ const SENSITIVE_KEYS = new Set([
   "authorization",
   "password",
   "secret",
+  "credential",
+  "credentials",
   "prompt",
   "reasoning",
   "hiddenreasoning",
   "chainofthought",
 ]);
 
-const SENSITIVE_SUFFIXES = ["apikey", "token", "secret", "password", "prompt"];
+const SENSITIVE_SUFFIXES = ["apikey", "token", "secret", "password", "credential", "credentials", "prompt"];
 
 function normalizeKey(key: string): string {
   return key.replace(/[^a-z0-9]/gi, "").toLowerCase();

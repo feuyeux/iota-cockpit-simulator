@@ -293,7 +293,7 @@ pub(crate) mod backend_impl {
 pub(crate) mod backend_impl {
     use cockpit_agent_runtime::{
         HumanBackend, HumanTurnContext,
-        acp_adapter::{AcpAdapterConfig, IotaCoreAcpAdapter},
+        acp_adapter::{AcpAdapterConfig, AcpAdapterError, IotaCoreAcpAdapter},
         iota_core_adapter::{CockpitSkill, IotaCoreAdapter},
         live::validate_decision_output,
     };
@@ -443,8 +443,13 @@ pub(crate) mod backend_impl {
                     }
                 }
             }
-            let last_error =
-                last_error.expect("loop always sets last_error before exhausting attempts");
+            let last_error = last_error.unwrap_or_else(|| {
+                AcpAdapterError::Turn(
+                    "stale-lock retry loop exhausted its attempts without recording a failure; \
+                     this indicates a bug in the retry loop rather than a backend error"
+                        .to_string(),
+                )
+            });
             Err(format!(
                 "{last_error}. iota-core still rejected all recovery attempts due to an \
                  execution-lock collision. The cockpit retried with independent opaque request \

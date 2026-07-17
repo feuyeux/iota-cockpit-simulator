@@ -8,7 +8,7 @@ use cockpit_simulation_core::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub const IPC_VERSION: u16 = 2;
+pub const IPC_VERSION: u16 = 3;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -63,6 +63,11 @@ pub enum RunnerCommand {
         source_recording_path: String,
         candidate_recording_path: String,
     },
+    /// Lightweight liveness probe, used by the desktop client's heartbeat
+    /// loop to detect a wedged or crashed runner process without invoking
+    /// any simulation logic. Answered with `{"pong": true, "seq": <seq>}`.
+    #[serde(rename = "Ping")]
+    Ping { seq: u64 },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

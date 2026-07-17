@@ -122,6 +122,8 @@ fn is_sensitive_key(key: &str) -> bool {
             | "authorization"
             | "password"
             | "secret"
+            | "credential"
+            | "credentials"
             | "prompt"
             | "reasoning"
             | "hiddenreasoning"
@@ -130,6 +132,8 @@ fn is_sensitive_key(key: &str) -> bool {
         || normalized.ends_with("token")
         || normalized.ends_with("secret")
         || normalized.ends_with("password")
+        || normalized.ends_with("credential")
+        || normalized.ends_with("credentials")
         || normalized.ends_with("prompt")
 }
 

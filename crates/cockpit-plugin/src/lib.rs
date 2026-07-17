@@ -113,8 +113,8 @@ pub struct PluginPolicy {
     ///
     /// This is a cooperative budget: it bounds plugins that return but does not
     /// preempt a hung plugin. OS-level preemption requires out-of-process
-    /// execution (see the plugin and acceptance sections in
-    /// `docs/cockpit-desktop-simulation-guide-zh.md`).
+    /// execution; see `PluginFailurePolicy` and the contract tests in
+    /// `tests/contract/plugin_host.rs` for the enforced failure behavior.
     pub tick_budget_ms: Option<u64>,
 }
 

@@ -545,7 +545,9 @@ impl Simulation {
             validate_state_diff(diff)?;
         }
         for diff in diffs {
-            let value = diff.value.as_f64().expect("state diff value is validated");
+            let value = diff.value.as_f64().ok_or_else(|| {
+                SimulationError::InvalidScenario("state diff value must be numeric".to_string())
+            })?;
             write_component_value(
                 &mut self.snapshot,
                 &diff.entity_id,

@@ -290,6 +290,7 @@ impl RunnerHandler {
                 source_recording_path,
                 candidate_recording_path,
             } => self.diff_recordings(&source_recording_path, &candidate_recording_path),
+            RunnerCommand::Ping { seq } => Ok(json!({ "pong": true, "seq": seq })),
         };
 
         Self::response_from_result(correlation_id, result)
@@ -582,7 +583,7 @@ impl RunnerHandler {
                 },
             });
         }
-        self.persist_recording()?;
+        self.emit_persist_recording_failure(&simulation, tick);
         self.emit(Self::tick_committed_event(&snapshot));
         for event in step.events {
             self.emit(RunnerEvent::SimulationEvent { cursor: 0, event });
@@ -727,7 +728,7 @@ impl RunnerHandler {
             recording.push(step.clone());
             recording.push_human_turns(human_turns.clone());
         }
-        self.persist_recording()?;
+        self.emit_persist_recording_failure(&simulation, tick);
         self.emit(Self::tick_committed_event(&snapshot));
         for evidence in &human_turns {
             self.emit(RunnerEvent::SimulationHumanTurn {
@@ -873,6 +874,35 @@ impl RunnerHandler {
             .save(recording)
             .map_err(|error| Box::new(Self::serialization_error(error.to_string())))?;
         Ok(Value::Null)
+    }
+
+    /// Persist the recording without letting a transient storage failure
+    /// (disk full, SQLite lock contention) discard the in-memory
+    /// `Simulation`. Earlier callers used `self.persist_recording()?` at
+    /// this point in the tick-commit path, before `self.simulation` had
+    /// been written back from the local `simulation` variable taken at the
+    /// top of the function. A storage error would propagate through `?`
+    /// immediately, returning from the handler with `self.simulation` still
+    /// `None` - permanently stranding the run: every subsequent command
+    /// would see "no run in progress" even though the tick had already been
+    /// committed in memory. This surfaces the failure as a
+    /// `RECORDING_PERSIST_FAILED` event instead, so the frontend can inform
+    /// the operator while the run remains controllable and the next
+    /// successful persist can catch up.
+    fn emit_persist_recording_failure(&mut self, simulation: &Simulation, tick: u64) {
+        if let Err(error) = self.persist_recording() {
+            self.emit(RunnerEvent::SimulationError {
+                cursor: 0,
+                error: IpcError {
+                    code: "RECORDING_PERSIST_FAILED".to_string(),
+                    message: error.message,
+                    details: error.details,
+                    run_id: Some(simulation.run_id().to_string()),
+                    tick: Some(tick),
+                    correlation_id: "recording-persist".to_string(),
+                },
+            });
+        }
     }
 
     fn snapshot(&self) -> HandlerResult {

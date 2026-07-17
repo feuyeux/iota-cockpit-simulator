@@ -424,6 +424,8 @@ fn sensitive_key(key: &str) -> bool {
             | "authorization"
             | "password"
             | "secret"
+            | "credential"
+            | "credentials"
             | "prompt"
             | "reasoning"
             | "hiddenreasoning"
@@ -432,6 +434,8 @@ fn sensitive_key(key: &str) -> bool {
         || normalized.ends_with("token")
         || normalized.ends_with("secret")
         || normalized.ends_with("password")
+        || normalized.ends_with("credential")
+        || normalized.ends_with("credentials")
         || normalized.ends_with("prompt")
 }
 
@@ -462,6 +466,17 @@ mod tests {
         }));
         assert_eq!(value["outer"]["apiKey"], REDACTED_SECRET);
         assert_eq!(value["outer"]["nested"][0]["auth_token"], REDACTED_SECRET);
+        assert!(!value.to_string().contains("do-not-leak"));
+    }
+
+    #[test]
+    fn trace_redaction_removes_credential_values() {
+        let value = redact_json(json!({
+            "credential": "do-not-leak",
+            "awsCredentials": "also-do-not-leak"
+        }));
+        assert_eq!(value["credential"], REDACTED_SECRET);
+        assert_eq!(value["awsCredentials"], REDACTED_SECRET);
         assert!(!value.to_string().contains("do-not-leak"));
     }
 }

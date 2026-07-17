@@ -516,6 +516,7 @@ name = "cockpit-desktop"
 version = "0.1.0"
 dependencies = [
  "cockpit-runner",
+ "iota-core",
  "serde",
  "serde_json",
  "tauri",
@@ -1919,7 +1920,6 @@ dependencies = [
 [[package]]
 name = "iota-core"
 version = "0.1.0"
-source = "git+https://github.com/feuyeux/iota-sympantos.git?rev=d29de2e6a65f887c8f5e0e7f0bbb387fd91b6dad#d29de2e6a65f887c8f5e0e7f0bbb387fd91b6dad"
 dependencies = [
  "anyhow",
  "chrono",

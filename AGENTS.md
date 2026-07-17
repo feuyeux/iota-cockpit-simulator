@@ -28,7 +28,7 @@ Add focused tests beside the affected contract: determinism tests belong in `tes
 
 ## Commits and Pull Requests
 
-Use short imperative commit subjects, such as `Integrate plugin execution into runner ticks` or `Recover desktop state after stale event cursors`. Keep commits focused and avoid unrelated formatting churn. Pull requests should explain behavior and affected boundaries, list verification commands, link the relevant issue or requirement, and include screenshots for desktop UI changes. Do not claim MVP completion unless every item in the unified [native acceptance checklist](docs/cockpit-desktop-simulation-guide-zh.md#12-原生-tauri-验收清单) has authoritative evidence.
+Use short imperative commit subjects, such as `Integrate plugin execution into runner ticks` or `Recover desktop state after stale event cursors`. Keep commits focused and avoid unrelated formatting churn. Pull requests should explain behavior and affected boundaries, list verification commands, link the relevant issue or requirement, and include screenshots for desktop UI changes. Do not claim MVP completion unless every bundled benchmark scenario in [`docs/user-guide-zh.md`](docs/user-guide-zh.md) has been run end to end with a passing evaluation.
 
 ## Security and Architecture
 

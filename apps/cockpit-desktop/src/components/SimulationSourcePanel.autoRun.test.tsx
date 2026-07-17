@@ -89,4 +89,50 @@ describe("SimulationSourcePanel auto-run", () => {
     }));
     expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: "commandRejected" }));
   });
+
+  it("ignores the step shortcut while auto-run is in flight to avoid a concurrent stepLive call", async () => {
+    const dispatch = vi.fn();
+    vi.spyOn(runnerClient, "validateScenario").mockResolvedValue({
+      id: "smoke-emergency-response",
+      path: "scenarios/smoke-in-cockpit.yaml",
+      schemaVersion: 1,
+      scenarioHash: "hash",
+      seed: 42,
+      agentId: "cockpit-agent",
+    });
+    vi.spyOn(runnerClient, "createLiveRun").mockResolvedValue({ runId: "run-concurrent", backend: "iota-core-acp" });
+    vi.spyOn(runnerClient, "start").mockResolvedValue();
+    let releaseStep: (() => void) | undefined;
+    const stepLiveSpy = vi.spyOn(runnerClient, "stepLive").mockImplementation(
+      () => new Promise((resolve) => {
+        releaseStep = () => resolve({ status: "running" });
+      })
+    );
+    vi.spyOn(runnerClient, "snapshot").mockResolvedValue(emptyBatch());
+
+    const element = render(dispatch);
+
+    await act(async () => {
+      (element.querySelector('button[aria-label="一键运行"]') as HTMLButtonElement).click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Auto-run's loop has issued exactly one in-flight stepLive call.
+    expect(stepLiveSpy).toHaveBeenCalledTimes(1);
+
+    // Pressing the step shortcut while auto-run is still awaiting that call
+    // must not enqueue a second, concurrent stepLive request.
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "s" }));
+      await Promise.resolve();
+    });
+    expect(stepLiveSpy).toHaveBeenCalledTimes(1);
+
+    releaseStep?.();
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
 });

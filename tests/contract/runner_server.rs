@@ -105,3 +105,38 @@ async fn loopback_server_preserves_state_across_reconnect() {
     }));
     server.abort();
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn loopback_server_answers_authenticated_ping_without_simulation_state() {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("listener binds");
+    let address = listener.local_addr().expect("address exists");
+    let server = tokio::spawn(serve_listener(listener, "server-test-token"));
+
+    let stream = TcpStream::connect(address).await.expect("connection");
+    let (read, mut write) = stream.into_split();
+    let mut lines = BufReader::new(read).lines();
+    let response = call(&mut write, &mut lines, RunnerCommand::Ping { seq: 42 }).await;
+
+    assert_eq!(
+        response.get("version").and_then(Value::as_u64),
+        Some(IPC_VERSION as u64)
+    );
+    assert_eq!(response.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        response
+            .get("result")
+            .and_then(|result| result.get("pong"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        response
+            .get("result")
+            .and_then(|result| result.get("seq"))
+            .and_then(Value::as_u64),
+        Some(42)
+    );
+    server.abort();
+}

@@ -109,13 +109,14 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
       if (event.target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) {
         return;
       }
-      if (event.key === KEYBOARD_SHORTCUTS.PAUSE && canPause(model) && !liveTurnInFlight) {
+      if (event.key === KEYBOARD_SHORTCUTS.PAUSE && canPause(model) && !liveTurnInFlight && !autoRunInFlight) {
         event.preventDefault();
         void runCommand(runnerClient.pause);
       } else if (
         event.key.toLowerCase() === KEYBOARD_SHORTCUTS.STEP
         && canStep(model)
         && !liveTurnInFlight
+        && !autoRunInFlight
       ) {
         event.preventDefault();
         void stepOnce();
@@ -123,7 +124,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [model, runCommand, liveTurnInFlight]);
+  }, [model, runCommand, liveTurnInFlight, autoRunInFlight]);
 
   async function loadScenario(path: string): Promise<boolean> {
     // State updates do not take effect until React's next render. Keep a ref
@@ -321,7 +322,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-zinc-300" htmlFor="benchmark-scenario">
-              {locale === "zh-CN" ? "第 1 步：选择场景" : "Step 1: Choose a scenario"}
+              {t("stepChooseScenario")}
             </label>
             <select
               id="benchmark-scenario"
@@ -348,7 +349,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
                 onClick={() => runCommand(() => loadScenario(scenarioPath))}
               >
                 <Upload className="h-4 w-4 shrink-0 text-cyan-300" />
-                <span className="min-w-0"><span className="block text-sm font-medium">{locale === "zh-CN" ? "第 2 步：加载场景" : "Step 2: Load scenario"}</span><span className="block text-[10px] text-cyan-200/70">{locale === "zh-CN" ? "读取场景并初始化模型后端" : "Read the scenario and initialize the model backend"}</span></span>
+                <span className="min-w-0"><span className="block text-sm font-medium">{t("stepLoadScenario")}</span><span className="block text-[10px] text-cyan-200/70">{t("stepLoadScenarioDetail")}</span></span>
               </button>
               <button
                 aria-label={t("autoRun")}
@@ -357,11 +358,11 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
                 onClick={() => void autoRunScenario()}
               >
                 <FastForward className="h-4 w-4 shrink-0 text-emerald-300" />
-                <span className="min-w-0"><span className="block text-sm font-medium">{locale === "zh-CN" ? "第 3 步：一键运行并评测" : "Step 3: Run and evaluate"}</span><span className="block text-[10px] text-emerald-200/70">{locale === "zh-CN" ? "自动推进至截止时刻，并持续更新右侧证据链" : "Advance to the deadline while the evidence chain updates"}</span></span>
+                <span className="min-w-0"><span className="block text-sm font-medium">{t("stepRunAndEvaluate")}</span><span className="block text-[10px] text-emerald-200/70">{t("stepRunAndEvaluateDetail")}</span></span>
               </button>
             </div>
             <div className="mt-3 border-t border-zinc-800 pt-2">
-              <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500">{locale === "zh-CN" ? "观察细节时使用" : "Use for close inspection"}</div>
+              <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500">{t("useForCloseInspection")}</div>
               <div className="grid grid-cols-4 gap-2">
                 <button aria-label={t("start")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canStart(model)} onClick={() => runCommand(runnerClient.start)}><Play className="h-3.5 w-3.5" />{t("start")}</button>
                 <button aria-label={t("step")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canStep(model) || liveTurnInFlight} onClick={() => void stepOnce()}><SkipForward className="h-3.5 w-3.5" />{t("step")}</button>
