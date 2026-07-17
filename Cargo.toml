@@ -44,8 +44,9 @@ cockpit-agent-runtime = { path = "crates/cockpit-agent-runtime" }
 cockpit-runner = { path = "crates/cockpit-runner" }
 cockpit-plugin = { path = "crates/cockpit-plugin" }
 # Local sibling checkout: the path override points at the development tree.
-# The sibling crate publishes as `iota-core`, which matches the rename here.
-iota-core = { version = "0.1.0", path = "../iota-sympantos/crates/iota-core", default-features = false }
+# The sibling package is `iota-sympantos-core`; retain the `iota-core` alias so
+# dependent crates continue to import its `iota_core` library unchanged.
+iota-core = { package = "iota-sympantos-core", version = "0.1.0", path = "../iota-sympantos/crates/iota-core", default-features = false }
 
 [features]
 # Opt-in real iota-core ACP backend, forwarded to the runner and agent runtime.

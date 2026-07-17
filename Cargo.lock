@@ -502,7 +502,7 @@ version = "0.1.0"
 dependencies = [
  "cockpit-scenario",
  "cockpit-simulation-core",
- "iota-core",
+ "iota-sympantos-core",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -516,7 +516,7 @@ name = "cockpit-desktop"
 version = "0.1.0"
 dependencies = [
  "cockpit-runner",
- "iota-core",
+ "iota-sympantos-core",
  "serde",
  "serde_json",
  "tauri",
@@ -1918,7 +1918,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "iota-core"
+name = "iota-sympantos-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",

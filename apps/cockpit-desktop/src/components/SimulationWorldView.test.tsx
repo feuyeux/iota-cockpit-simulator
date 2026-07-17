@@ -13,6 +13,7 @@ let container: HTMLDivElement | null = null;
 let root: Root | null = null;
 
 function render(model: SimulationModel) {
+  window.localStorage.setItem("cockpit:locale", "en-US");
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
