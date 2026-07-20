@@ -1,6 +1,6 @@
-use cockpit_agent_runtime::{LocalMcpServer, RuleAgent};
+use cockpit_agent::{LocalMcpServer, RuleAgent};
 use cockpit_scenario::load_scenario;
-use cockpit_simulation_core::{
+use cockpit_world::{
     ActionRequest, ActionStatus, ErrorCode, Observation, Simulation, clock::RunStatus,
 };
 

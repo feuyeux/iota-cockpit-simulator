@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { SimulationSourcePanel } from "./SimulationSourcePanel";
 import { I18nProvider } from "../i18n";
-import { runnerClient } from "../runnerClient";
+import { simulatorClient } from "../simulatorClient";
 import { initialSimulationModel } from "../state/simulationReducer";
 
 let container: HTMLDivElement | null = null;
@@ -40,9 +40,9 @@ afterEach(() => {
 });
 
 describe("SimulationSourcePanel auto-run", () => {
-  it("adopts the Runner failure event when a live turn times out", async () => {
+  it("adopts the Simulator failure event when a live turn times out", async () => {
     const dispatch = vi.fn();
-    vi.spyOn(runnerClient, "validateScenario").mockResolvedValue({
+    vi.spyOn(simulatorClient, "validateScenario").mockResolvedValue({
       id: "smoke-emergency-response",
       path: "scenarios/smoke-in-cockpit.yaml",
       schemaVersion: 1,
@@ -50,10 +50,10 @@ describe("SimulationSourcePanel auto-run", () => {
       seed: 42,
       agentId: "cockpit-agent",
     });
-    vi.spyOn(runnerClient, "createLiveRun").mockResolvedValue({ runId: "run-timeout", backend: "iota-core-acp" });
-    vi.spyOn(runnerClient, "start").mockResolvedValue();
-    vi.spyOn(runnerClient, "stepLive").mockRejectedValue(new Error("backend turn exceeded 60000ms"));
-    vi.spyOn(runnerClient, "snapshot")
+    vi.spyOn(simulatorClient, "createLiveRun").mockResolvedValue({ runId: "run-timeout", backend: "iota-core-acp" });
+    vi.spyOn(simulatorClient, "start").mockResolvedValue();
+    vi.spyOn(simulatorClient, "stepLive").mockRejectedValue(new Error("backend turn exceeded 60000ms"));
+    vi.spyOn(simulatorClient, "snapshot")
       .mockResolvedValueOnce(emptyBatch())
       .mockResolvedValueOnce(emptyBatch())
       .mockResolvedValueOnce(emptyBatch(3))
@@ -84,7 +84,7 @@ describe("SimulationSourcePanel auto-run", () => {
     });
 
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
-      type: "runnerEvents",
+      type: "simulatorEvents",
       events: expect.arrayContaining([expect.objectContaining({ type: "SimulationError" })]),
     }));
     expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: "commandRejected" }));
@@ -92,7 +92,7 @@ describe("SimulationSourcePanel auto-run", () => {
 
   it("ignores the step shortcut while auto-run is in flight to avoid a concurrent stepLive call", async () => {
     const dispatch = vi.fn();
-    vi.spyOn(runnerClient, "validateScenario").mockResolvedValue({
+    vi.spyOn(simulatorClient, "validateScenario").mockResolvedValue({
       id: "smoke-emergency-response",
       path: "scenarios/smoke-in-cockpit.yaml",
       schemaVersion: 1,
@@ -100,15 +100,15 @@ describe("SimulationSourcePanel auto-run", () => {
       seed: 42,
       agentId: "cockpit-agent",
     });
-    vi.spyOn(runnerClient, "createLiveRun").mockResolvedValue({ runId: "run-concurrent", backend: "iota-core-acp" });
-    vi.spyOn(runnerClient, "start").mockResolvedValue();
+    vi.spyOn(simulatorClient, "createLiveRun").mockResolvedValue({ runId: "run-concurrent", backend: "iota-core-acp" });
+    vi.spyOn(simulatorClient, "start").mockResolvedValue();
     let releaseStep: (() => void) | undefined;
-    const stepLiveSpy = vi.spyOn(runnerClient, "stepLive").mockImplementation(
+    const stepLiveSpy = vi.spyOn(simulatorClient, "stepLive").mockImplementation(
       () => new Promise((resolve) => {
         releaseStep = () => resolve({ status: "running" });
       })
     );
-    vi.spyOn(runnerClient, "snapshot").mockResolvedValue(emptyBatch());
+    vi.spyOn(simulatorClient, "snapshot").mockResolvedValue(emptyBatch());
 
     const element = render(dispatch);
 

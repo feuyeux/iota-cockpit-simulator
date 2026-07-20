@@ -126,15 +126,15 @@ describe("simulationReducer", () => {
       state: "running" as const,
       runId: "run-123",
     };
-    const action: SimulationAction = { type: "runnerEvent", event };
+    const action: SimulationAction = { type: "simulatorEvent", event };
     const state = simulationReducer(initialSimulationModel, action);
     expect(state.state).toBe("running");
     expect(state.runId).toBe("run-123");
   });
 
-  it("applies a runner event batch in one reducer action", () => {
+  it("applies a simulator event batch in one reducer action", () => {
     const state = simulationReducer(initialSimulationModel, {
-      type: "runnerEvents",
+      type: "simulatorEvents",
       events: [
         { type: "SimulationStateChanged", state: "running", runId: "run-batch" },
         { type: "SimulationStateChanged", state: "stopped", runId: "run-batch" },
@@ -154,7 +154,7 @@ describe("simulationReducer", () => {
       version: 1,
       cursor: 10,
     };
-    const action: SimulationAction = { type: "runnerEvent", event };
+    const action: SimulationAction = { type: "simulatorEvent", event };
     const state = simulationReducer(initialSimulationModel, action);
     expect(state.tick).toBe(5);
     expect(state.simTimeMs).toBe(500);
@@ -182,7 +182,7 @@ describe("simulationReducer", () => {
       }
     };
     const state = simulationReducer(initialSimulationModel, {
-      type: "runnerEvent",
+      type: "simulatorEvent",
       event
     });
     expect(state.humanTurns).toEqual([
@@ -202,7 +202,7 @@ describe("simulationReducer", () => {
       },
     };
     const state = simulationReducer(initialSimulationModel, {
-      type: "runnerEvent",
+      type: "simulatorEvent",
       event,
     });
     expect(state.state).toBe("failed");
@@ -214,7 +214,7 @@ describe("simulationReducer", () => {
     const paused = simulationReducer(
       { ...initialSimulationModel, state: "paused" },
       {
-        type: "runnerEvent",
+        type: "simulatorEvent",
         event: {
           type: "SimulationTickCommitted",
           runId: "run-1",
@@ -233,7 +233,7 @@ describe("simulationReducer", () => {
     let state = initialSimulationModel;
     for (let i = 0; i < APP_CONFIG.MAX_EVENTS + 10; i += 1) {
       state = simulationReducer(state, {
-        type: "runnerEvent",
+        type: "simulatorEvent",
         event: {
           type: "SimulationEvent",
           cursor: i,

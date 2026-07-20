@@ -116,8 +116,8 @@ fn metrics(recording: &Recording) -> RecordingMetrics {
 }
 
 fn normalized_field_matches(
-    source: Option<&cockpit_simulation_core::StepRecord>,
-    candidate: Option<&cockpit_simulation_core::StepRecord>,
+    source: Option<&cockpit_world::StepRecord>,
+    candidate: Option<&cockpit_world::StepRecord>,
     field: &str,
 ) -> bool {
     let Some(source) = source else {

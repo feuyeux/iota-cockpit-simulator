@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Ban, Bot, Check, ChevronLeft, ChevronRight, Download, Wrench, X, Zap } from "lucide-react";
 import { APP_CONFIG } from "../config/constants";
-import { useRunner } from "../hooks/useRunner";
+import { useSimulator } from "../hooks/useSimulator";
 import {
   exportActionResultsAsJSON,
   exportEventsAsCSV,
@@ -9,7 +9,7 @@ import {
   exportTracesAsCSV,
   exportTracesAsJSON
 } from "../utils/export";
-import { runnerClient } from "../runnerClient";
+import { simulatorClient } from "../simulatorClient";
 import type { SimulationAction } from "../state/simulationReducer";
 import type {
   ActionResult,
@@ -86,7 +86,7 @@ function buildFeed(model: SimulationModel): FeedItem[] {
 
 export function SimulationActivityFeed({ model, dispatch }: Props) {
   const { locale, t } = useI18n();
-  const { syncEvents } = useRunner(model, dispatch);
+  const { syncEvents } = useSimulator(model, dispatch);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [page, setPage] = useState(0);
 
@@ -102,14 +102,14 @@ export function SimulationActivityFeed({ model, dispatch }: Props) {
 
   async function resolve(requestId: string, decision: "approve" | "reject") {
     try {
-      if (decision === "approve") await runnerClient.approveAction(requestId);
-      else await runnerClient.rejectAction(requestId, t("operatorRejectedReason"));
+      if (decision === "approve") await simulatorClient.approveAction(requestId);
+      else await simulatorClient.rejectAction(requestId, t("operatorRejectedReason"));
       await syncEvents();
     } catch (error) {
       dispatch({
         type: "commandRejected",
         error: {
-          code: "RUNNER_COMMAND_FAILED",
+          code: "SIMULATOR_COMMAND_FAILED",
           message: describeError(error, t("approvalCommandFailed")),
           correlationId: "desktop-approval",
           runId: model.runId,
@@ -121,13 +121,13 @@ export function SimulationActivityFeed({ model, dispatch }: Props) {
 
   async function cancelPending() {
     try {
-      await runnerClient.cancelAgentTurn();
+      await simulatorClient.cancelAgentTurn();
       await syncEvents();
     } catch (error) {
       dispatch({
         type: "commandRejected",
         error: {
-          code: "RUNNER_COMMAND_FAILED",
+          code: "SIMULATOR_COMMAND_FAILED",
           message: describeError(error, t("cancelCommandFailed")),
           correlationId: "desktop-cancel",
           runId: model.runId,

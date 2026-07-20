@@ -3,7 +3,7 @@ use cockpit_recording::{
     Recording, replay_recording, run_rule_agent_recording, run_scripted_recording,
 };
 use cockpit_scenario::load_scenario;
-use cockpit_simulation_core::{
+use cockpit_world::{
     ActionRequest, Simulation, StateDiff, capability::CapabilityCatalog, resolve_action,
 };
 use serde_json::json;

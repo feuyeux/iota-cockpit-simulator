@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cross-platform performance acceptance for the cockpit runner.
+# Cross-platform performance acceptance for the cockpit simulator.
 #
 # Runs the fixed 1,000-entity / 10,000-events-per-minute workload and writes a
 # per-OS report (including peak memory and target triple) so acceptance
@@ -20,7 +20,7 @@ OS_LABEL="$(uname -s 2>/dev/null || echo unknown)"
 OUT_FILE="$OUT_DIR/bench-${OS_LABEL}.json"
 
 echo "Running perf acceptance: ticks=$TICKS os=$OS_LABEL"
-cargo run --release -p cockpit-runner -- bench "$SCENARIO" \
+cargo run --release -p cockpit-simulator -- bench "$SCENARIO" \
   --ticks "$TICKS" \
   --active-entities 1000 \
   --events-per-minute 10000 \

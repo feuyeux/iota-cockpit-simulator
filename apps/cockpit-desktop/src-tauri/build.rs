@@ -8,10 +8,9 @@ fn main() {
     } else {
         ""
     };
-    for binary in ["cockpit-runner", "cockpit-evaluator"] {
-        let sidecar = std::path::Path::new("binaries").join(format!(
-            "{binary}-{target}{executable_extension}"
-        ));
+    for binary in ["cockpit-simulator", "cockpit-evaluator"] {
+        let sidecar = std::path::Path::new("binaries")
+            .join(format!("{binary}-{target}{executable_extension}"));
         if !sidecar.exists() {
             std::fs::create_dir_all(sidecar.parent().expect("sidecar has a parent"))
                 .expect("create sidecar directory");

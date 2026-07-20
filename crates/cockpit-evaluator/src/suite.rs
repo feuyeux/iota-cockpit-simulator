@@ -103,7 +103,7 @@ fn default_timeout_ms() -> u64 {
 
 pub fn run_suite<F>(
     manifest_path: &Path,
-    runner_command: &Path,
+    simulator_command: &Path,
     minimum_pass_rate: f64,
     baseline_path: Option<&Path>,
     mut evaluate: F,
@@ -135,7 +135,7 @@ where
         if case.id.trim().is_empty() || !ids.insert(case.id.clone()) {
             anyhow::bail!("suite case IDs must be non-empty and unique: '{}'", case.id);
         }
-        match evaluate_case(case, root, runner_command, &mut evaluate) {
+        match evaluate_case(case, root, simulator_command, &mut evaluate) {
             Ok(report) => cases.push(report),
             Err(error) => cases.push(infrastructure_failure_case(case, error.to_string())),
         }
@@ -218,7 +218,7 @@ where
 fn evaluate_case<F>(
     case: &SuiteCase,
     root: &Path,
-    runner_command: &Path,
+    simulator_command: &Path,
     evaluate: &mut F,
 ) -> anyhow::Result<SuiteCaseReport>
 where
@@ -229,7 +229,7 @@ where
         .with_context(|| format!("failed to read private rubric {}", rubric_path.display()))?;
     let rubric: HiddenRubric = serde_yaml::from_slice(&rubric_bytes)
         .with_context(|| format!("failed to parse private rubric {}", rubric_path.display()))?;
-    let (recording, execution_error) = load_or_execute(case, root, runner_command)?;
+    let (recording, execution_error) = load_or_execute(case, root, simulator_command)?;
     let scenario_id = recording.scenario_id.clone();
     let run_id = recording.run_id.clone();
     let mut input = EvaluationInput::new(recording);
@@ -291,7 +291,7 @@ fn missing_baseline_case(before: &SuiteCaseReport) -> SuiteCaseReport {
 fn load_or_execute(
     case: &SuiteCase,
     root: &Path,
-    runner_command: &Path,
+    simulator_command: &Path,
 ) -> anyhow::Result<(Recording, Option<String>)> {
     match (
         case.scenario.as_ref(),
@@ -299,7 +299,9 @@ fn load_or_execute(
         case.recording_db.as_ref(),
         case.run_id.as_deref(),
     ) {
-        (Some(scenario), None, None, None) => execute_case(case, &resolve(root, scenario), runner_command),
+        (Some(scenario), None, None, None) => {
+            execute_case(case, &resolve(root, scenario), simulator_command)
+        }
         (None, Some(recording), None, None) => {
             let path = resolve(root, recording);
             let bytes = fs::read(&path)
@@ -324,12 +326,18 @@ fn load_or_execute(
 fn execute_case(
     case: &SuiteCase,
     scenario: &Path,
-    runner_command: &Path,
+    simulator_command: &Path,
 ) -> anyhow::Result<(Recording, Option<String>)> {
     let safe_id = case
         .id
         .chars()
-        .map(|character| if character.is_ascii_alphanumeric() { character } else { '-' })
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character
+            } else {
+                '-'
+            }
+        })
         .collect::<String>();
     let output_path = std::env::temp_dir().join(format!(
         "cockpit-evaluation-{}-{}-{safe_id}.json",
@@ -343,7 +351,7 @@ fn execute_case(
         ExecutionMode::Deterministic => "run",
         ExecutionMode::Live => "run-live",
     };
-    let mut command = Command::new(runner_command);
+    let mut command = Command::new(simulator_command);
     command
         .arg(subcommand)
         .arg(scenario)
@@ -356,21 +364,28 @@ fn execute_case(
     }
     let output = command.output().with_context(|| {
         format!(
-            "failed to launch runner {} for suite case '{}'",
-            runner_command.display(),
+            "failed to launch simulator {} for suite case '{}'",
+            simulator_command.display(),
             case.id
         )
     })?;
     let recording_bytes = fs::read(&output_path).with_context(|| {
         format!(
-            "runner did not produce recording for suite case '{}': {}",
+            "simulator did not produce recording for suite case '{}': {}",
             case.id,
-            String::from_utf8_lossy(&output.stderr).chars().take(512).collect::<String>()
+            String::from_utf8_lossy(&output.stderr)
+                .chars()
+                .take(512)
+                .collect::<String>()
         )
     })?;
     let _ = fs::remove_file(&output_path);
-    let recording: Recording = serde_json::from_slice(&recording_bytes)
-        .with_context(|| format!("runner produced invalid recording for suite case '{}'", case.id))?;
+    let recording: Recording = serde_json::from_slice(&recording_bytes).with_context(|| {
+        format!(
+            "simulator produced invalid recording for suite case '{}'",
+            case.id
+        )
+    })?;
     let summary = serde_json::from_slice::<serde_json::Value>(&output.stdout).ok();
     let execution_error = summary
         .as_ref()
@@ -432,8 +447,7 @@ pub fn write_junit_report(path: &Path, report: &BatchEvaluationReport) -> anyhow
         xml.push_str("</testcase>\n");
     }
     xml.push_str("</testsuite>\n");
-    fs::write(path, xml)
-        .with_context(|| format!("failed to write JUnit report {}", path.display()))
+    fs::write(path, xml).with_context(|| format!("failed to write JUnit report {}", path.display()))
 }
 
 fn escape_xml(value: &str) -> String {
@@ -470,13 +484,17 @@ mod tests {
 
     #[test]
     fn infrastructure_failure_is_an_auditable_inconclusive_case() {
-        let case = infrastructure_failure_case(&suite_case("broken-case"), "runner failed".into());
+        let case =
+            infrastructure_failure_case(&suite_case("broken-case"), "simulator failed".into());
 
         assert_eq!(case.case_id, "broken-case");
         assert_eq!(case.report.verdict, Verdict::Inconclusive);
         assert!(!case.report.release_gate_passed);
-        assert_eq!(case.infrastructure_error.as_deref(), Some("runner failed"));
-        assert!(case.report.explanation.contains("runner failed"));
+        assert_eq!(
+            case.infrastructure_error.as_deref(),
+            Some("simulator failed")
+        );
+        assert!(case.report.explanation.contains("simulator failed"));
         assert!(!case.regressed);
     }
 

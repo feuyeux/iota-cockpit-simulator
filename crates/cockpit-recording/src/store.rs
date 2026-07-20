@@ -111,9 +111,7 @@ fn redact_human_turn_prose(value: &mut Value) {
 
 /// Serialize a Recording for an external process without persisting secrets,
 /// prompts, hidden reasoning, narrative, or utterance prose.
-pub fn serialize_redacted_recording(
-    recording: &Recording,
-) -> Result<Vec<u8>, RecordingStoreError> {
+pub fn serialize_redacted_recording(recording: &Recording) -> Result<Vec<u8>, RecordingStoreError> {
     let mut value = serde_json::to_value(recording)?;
     redact_human_turn_prose(&mut value);
     redact_value(&mut value);

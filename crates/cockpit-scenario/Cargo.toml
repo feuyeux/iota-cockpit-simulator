@@ -6,7 +6,7 @@ rust-version.workspace = true
 publish = false
 
 [dependencies]
-cockpit-simulation-core.workspace = true
+cockpit-world.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
 sha2.workspace = true

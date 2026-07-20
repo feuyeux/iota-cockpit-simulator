@@ -72,7 +72,7 @@ function scenarioFileName(path: string): string {
 }
 
 /**
- * Runner receives a resolved absolute path from Tauri while the built-in
+ * Simulator receives a resolved absolute path from Tauri while the built-in
  * catalog intentionally keeps portable relative paths. Match the full
  * normalized path first, then the unique scenario filename as a fallback.
  */

@@ -1,6 +1,6 @@
 # Desktop CPU 与内存火焰图采集
 
-脚本附加到**已经运行**的 Cockpit Desktop、`cockpit-runner` 或其他子进程。由于 Tauri Host、Runner 和 WebView 是不同进程，建议分别采集，避免把热点归到错误的运行时。
+脚本附加到**已经运行**的 Cockpit Desktop、`cockpit-simulator` 或其他子进程。由于 Tauri Host、Simulator 和 WebView 是不同进程，建议分别采集，避免把热点归到错误的运行时。
 
 ## 1. Linux 与 macOS
 
@@ -28,7 +28,7 @@ tools/profile-desktop.sh memory
 - macOS 的系统采样工具随 Xcode/macOS 更新；若系统弹出 Command Line Tools 安装窗口，完成安装后重新运行脚本。
 - macOS 内存采集会自动切到 `tauri build --debug` 生成的可附加签名包，再用 `xctrace` 采集；这是绕开 `tauri dev` 里未附加 entitlement 的稳定路径。首次运行会先构建 bundle。脚本仍会在每次 CPU/内存采集开始前确认目标 PID 仍在运行。
 - 不传采集类型时，脚本顺序生成 CPU 和内存两份报告；传 `cpu` 或 `memory` 时只生成对应报告。
-- 无需定位 `PID`。脚本优先选择 `Cockpit Simulation` 或 `cockpit-desktop` 主进程；找不到主进程时自动回退到 `cockpit-runner`。
+- 无需定位 `PID`。脚本优先选择 `Cockpit Simulation` 或 `cockpit-desktop` 主进程；找不到主进程时自动回退到 `cockpit-simulator`。
 - 如需诊断指定子进程，仍可使用 `--pid`、`--process`、`-ProcessId` 或 `-ProcessPattern` 覆盖自动选择结果。
 - 结果写入仓库根目录的 `profile-results/`。该目录可能包含运行数据，不应提交。
 - 离线或受管环境可传 `--no-update`（PowerShell 为 `-NoUpdate`），但依赖必须已经存在。

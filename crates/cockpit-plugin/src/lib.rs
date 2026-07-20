@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use cockpit_simulation_core::WorldSnapshot;
+use cockpit_world::WorldSnapshot;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};

@@ -43,13 +43,13 @@ def main() -> None:
         )
     )
     core = (
-        ROOT / "crates" / "cockpit-simulation-core" / "src" / "digital_twin.rs"
+        ROOT / "crates" / "cockpit-world" / "src" / "digital_twin.rs"
     ).read_text(encoding="utf-8")
     generated_fire = (
-        ROOT / "crates" / "cockpit-simulation-core" / "src" / "generated_vehicle_fire.rs"
+        ROOT / "crates" / "cockpit-world" / "src" / "generated_vehicle_fire.rs"
     ).read_text(encoding="utf-8")
     world = (
-        ROOT / "crates" / "cockpit-simulation-core" / "src" / "world.rs"
+        ROOT / "crates" / "cockpit-world" / "src" / "world.rs"
     ).read_text(encoding="utf-8")
     recording = (ROOT / "crates" / "cockpit-recording" / "src" / "lib.rs").read_text(
         encoding="utf-8"

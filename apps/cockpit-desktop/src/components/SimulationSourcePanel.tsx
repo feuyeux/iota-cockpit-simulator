@@ -10,8 +10,8 @@ import {
   Upload
 } from "lucide-react";
 import { APP_CONFIG, KEYBOARD_SHORTCUTS } from "../config/constants";
-import { useRunner } from "../hooks/useRunner";
-import { runnerClient } from "../runnerClient";
+import { useSimulator } from "../hooks/useSimulator";
+import { simulatorClient } from "../simulatorClient";
 import { describeError } from "../utils/describeError";
 import {
   canPause,
@@ -58,7 +58,7 @@ function reportFailure(
   dispatch({
     type: "commandRejected",
     error: {
-      code: "RUNNER_COMMAND_FAILED",
+      code: "SIMULATOR_COMMAND_FAILED",
       message: describeError(error, fallbackMessage),
       correlationId: "desktop-source-panel",
       runId: model.runId,
@@ -85,7 +85,7 @@ function DiffSummary({ report }: { report: RecordingDiff }) {
 
 export function SimulationSourcePanel({ model, dispatch }: Props) {
   const { locale, t } = useI18n();
-  const { syncEvents, runCommand } = useRunner(model, dispatch);
+  const { syncEvents, runCommand } = useSimulator(model, dispatch);
   const [mode, setMode] = useState<SourceMode>("live");
   // Hermes cold-starts its ACP session and tool surface before the first
   // prompt, which regularly exceeds a 20-second end-to-end budget.
@@ -111,7 +111,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
       }
       if (event.key === KEYBOARD_SHORTCUTS.PAUSE && canPause(model) && !liveTurnInFlight && !autoRunInFlight) {
         event.preventDefault();
-        void runCommand(runnerClient.pause);
+        void runCommand(simulatorClient.pause);
       } else if (
         event.key.toLowerCase() === KEYBOARD_SHORTCUTS.STEP
         && canStep(model)
@@ -137,7 +137,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
     try {
       let scenario;
       try {
-        scenario = await runnerClient.validateScenario(path);
+        scenario = await simulatorClient.validateScenario(path);
       } catch (error) {
         dispatch({
           type: "scenarioInvalid",
@@ -150,7 +150,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
         return false;
       }
       dispatch({ type: "runCreating" });
-      const live = await runnerClient.createLiveRun(path, modelTimeoutMs);
+      const live = await simulatorClient.createLiveRun(path, modelTimeoutMs);
       dispatch({
         type: "scenarioReady",
         scenario,
@@ -168,7 +168,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
     if (liveTurnInFlight || autoRunInFlight) return;
     setLiveTurnInFlight(true);
     try {
-      await runCommand(runnerClient.stepLive);
+      await runCommand(simulatorClient.stepLive);
     } finally {
       setLiveTurnInFlight(false);
     }
@@ -183,29 +183,29 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
       const loaded = await loadScenario(scenarioPath);
       if (!loaded) return;
       await syncEvents();
-      if (!(await runCommand(runnerClient.start))) return;
+      if (!(await runCommand(simulatorClient.start))) return;
 
       // The load/start commands have already synchronized their events. Keep
       // a local cursor for the loop because React state is intentionally not
       // updated synchronously between ACP-backed ticks.
-      const initialBatch = await runnerClient.snapshot(model.lastCursor);
+      const initialBatch = await simulatorClient.snapshot(model.lastCursor);
       cursor = initialBatch.nextCursor;
       const maxTicks = selectedScenario?.deadlineTick ?? 20;
 
       for (let index = 0; index < maxTicks && !autoRunCancelled.current; index += 1) {
-        const result = await runnerClient.stepLive();
+        const result = await simulatorClient.stepLive();
         const status = typeof result === "object" && result !== null && "status" in result
           ? String((result as { status?: unknown }).status)
           : "";
-        const batch = await runnerClient.snapshot(cursor);
+        const batch = await simulatorClient.snapshot(cursor);
         if (batch.resetRequired) {
-          const snapshot = await runnerClient.simulationSnapshot();
+          const snapshot = await simulatorClient.simulationSnapshot();
           dispatch({ type: "snapshotReset", snapshot, cursor: batch.firstAvailableCursor - 1 });
           cursor = batch.firstAvailableCursor - 1;
         }
-        if (batch.events.length > 0) dispatch({ type: "runnerEvents", events: batch.events });
+        if (batch.events.length > 0) dispatch({ type: "simulatorEvents", events: batch.events });
         if (batch.events.some((event) => event.type === "SimulationTickCommitted")) {
-          const snapshot = await runnerClient.simulationSnapshot();
+          const snapshot = await simulatorClient.simulationSnapshot();
           dispatch({ type: "snapshotUpdated", snapshot, cursor: batch.nextCursor });
         }
         cursor = batch.nextCursor;
@@ -214,19 +214,19 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
       }
     } catch (error) {
       try {
-        const batch = await runnerClient.snapshot(cursor);
+        const batch = await simulatorClient.snapshot(cursor);
         if (batch.resetRequired) {
-          const snapshot = await runnerClient.simulationSnapshot();
+          const snapshot = await simulatorClient.simulationSnapshot();
           dispatch({ type: "snapshotReset", snapshot, cursor: batch.firstAvailableCursor - 1 });
         }
-        if (batch.events.length > 0) dispatch({ type: "runnerEvents", events: batch.events });
+        if (batch.events.length > 0) dispatch({ type: "simulatorEvents", events: batch.events });
         if (batch.events.some((event) => event.type === "SimulationTickCommitted")) {
-          const snapshot = await runnerClient.simulationSnapshot();
+          const snapshot = await simulatorClient.simulationSnapshot();
           dispatch({ type: "snapshotUpdated", snapshot, cursor: batch.nextCursor });
         }
         if (batch.events.some((event) => event.type === "SimulationError")) return;
       } catch {
-        // Fall back to the command error when the Runner event stream is unavailable.
+        // Fall back to the command error when the Simulator event stream is unavailable.
       }
       reportFailure(dispatch, model, error, t("commandFailed"));
     } finally {
@@ -237,16 +237,16 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
   async function stopRun() {
     autoRunCancelled.current = true;
     try {
-      await runnerClient.cancelLiveTurn();
+      await simulatorClient.cancelLiveTurn();
     } catch (error) {
       reportFailure(dispatch, model, error, t("commandFailed"));
       return;
     }
-    await runCommand(runnerClient.stop);
+    await runCommand(simulatorClient.stop);
   }
 
   async function browseScenario() {
-    const path = await runnerClient.openScenarioFilePicker();
+    const path = await simulatorClient.openScenarioFilePicker();
     if (path) {
       setScenarioPath(path);
       await runCommand(() => loadScenario(path));
@@ -256,7 +256,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
   async function replay() {
     if (!model.scenario || !recordingPath) return;
     try {
-      await runnerClient.startReplay(model.scenario.path, recordingPath);
+      await simulatorClient.startReplay(model.scenario.path, recordingPath);
       await syncEvents();
     } catch (error) {
       reportFailure(dispatch, model, error, t("commandFailed"));
@@ -266,7 +266,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
   async function compare() {
     if (!recordingPath || !candidatePath) return;
     try {
-      const report = await runnerClient.diffRecordings(recordingPath, candidatePath);
+      const report = await simulatorClient.diffRecordings(recordingPath, candidatePath);
       dispatch({ type: "replayDiffUpdated", report });
     } catch (error) {
       reportFailure(dispatch, model, error, t("commandFailed"));
@@ -274,7 +274,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
   }
 
   async function browseRecording(target: "source" | "candidate") {
-    const path = await runnerClient.openRecordingFilePicker();
+    const path = await simulatorClient.openRecordingFilePicker();
     if (path) {
       if (target === "source") setRecordingPath(path);
       else setCandidatePath(path);
@@ -364,9 +364,9 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
             <div className="mt-3 border-t border-zinc-800 pt-2">
               <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500">{t("useForCloseInspection")}</div>
               <div className="grid grid-cols-4 gap-2">
-                <button aria-label={t("start")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canStart(model)} onClick={() => runCommand(runnerClient.start)}><Play className="h-3.5 w-3.5" />{t("start")}</button>
+                <button aria-label={t("start")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canStart(model)} onClick={() => runCommand(simulatorClient.start)}><Play className="h-3.5 w-3.5" />{t("start")}</button>
                 <button aria-label={t("step")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canStep(model) || liveTurnInFlight} onClick={() => void stepOnce()}><SkipForward className="h-3.5 w-3.5" />{t("step")}</button>
-                <button aria-label={t("pause")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canPause(model) || liveTurnInFlight} onClick={() => runCommand(runnerClient.pause)}><Pause className="h-3.5 w-3.5" />{t("pause")}</button>
+                <button aria-label={t("pause")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canPause(model) || liveTurnInFlight} onClick={() => runCommand(simulatorClient.pause)}><Pause className="h-3.5 w-3.5" />{t("pause")}</button>
                 <button aria-label={t("stop")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!model.serviceConnected || (!canStop(model) && !liveTurnInFlight && !autoRunInFlight)} onClick={() => void stopRun()}><Square className="h-3.5 w-3.5" />{t("stop")}</button>
               </div>
             </div>

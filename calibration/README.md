@@ -1,6 +1,6 @@
 # Vehicle-cabin calibration
 
-`calibrate.py`, `calibrate_vehicle_fire.py`, and `validate_human_heat_stress.py` are dependency-free, deterministic pipelines for the aggregate thermal response, measured combustion source, and directional thermoregulation evidence used by `cockpit-simulation-core::digital_twin`.
+`calibrate.py`, `calibrate_vehicle_fire.py`, and `validate_human_heat_stress.py` are dependency-free, deterministic pipelines for the aggregate thermal response, measured combustion source, and directional thermoregulation evidence used by `cockpit-world::digital_twin`.
 
 ## Source and license
 

@@ -1,4 +1,4 @@
-//! End-to-end coverage for the live-agent runner path.
+//! End-to-end coverage for the live-agent simulator path.
 //!
 //! The default build exercises the full per-human driver -> synthetic backend
 //! -> recording pipeline, so it stays deterministic and offline. There is no
@@ -8,8 +8,8 @@
 //! run fails fast rather than silently degrading.
 
 use cockpit_recording::{CURRENT_RUNTIME_CONTRACT_VERSION, Recording};
-use cockpit_runner::{LiveRunConfig, replay_live, run_live};
 use cockpit_scenario::load_scenario;
+use cockpit_simulator::{LiveRunConfig, replay_live, run_live};
 
 fn base_config() -> LiveRunConfig {
     LiveRunConfig {
@@ -42,15 +42,38 @@ async fn live_run_with_the_synthetic_backend_stays_deterministic() {
     assert_eq!(
         first.tick_evidence.len(),
         first.ticks,
-        "every committed tick carries per-human decision evidence"
+        "every committed tick carries its event-driven decision evidence"
     );
-    for tick in &first.tick_evidence {
+    assert!(
+        first
+            .tick_evidence
+            .iter()
+            .any(|tick| tick.humans.is_empty()),
+        "idle ticks must not spend a synthetic backend turn"
+    );
+    assert!(
+        first
+            .tick_evidence
+            .iter()
+            .any(|tick| !tick.humans.is_empty()),
+        "initial, cadence, or event ticks must retain decision evidence"
+    );
+    let scheduled_turns = first
+        .tick_evidence
+        .iter()
+        .map(|tick| tick.humans.len())
+        .sum::<usize>();
+    assert!(
+        scheduled_turns < first.ticks as usize * 2,
+        "event-driven scheduling must use fewer turns than every-tick, every-human execution"
+    );
+    for human in first
+        .tick_evidence
+        .iter()
+        .flat_map(|tick| tick.humans.iter())
+    {
         assert!(
-            !tick.humans.is_empty(),
-            "every tick records a decision for at least one human"
-        );
-        assert!(
-            tick.humans.iter().all(|human| !human.tool_calls.is_empty()),
+            !human.tool_calls.is_empty(),
             "the synthetic backend must exercise on-demand simulation tools"
         );
     }
@@ -128,7 +151,7 @@ async fn bundled_live_scenarios_are_either_synthetic_successes_or_fail_closed_ac
         let evaluation: cockpit_evaluation::EvaluationResult =
             serde_json::from_value(report.evaluation).expect("evaluation serializes");
 
-        // Cargo workspace feature unification can enable the runner's
+        // Cargo workspace feature unification can enable the simulator's
         // `live-acp` dependency through the desktop crate even when this root
         // package does not have its own `live-acp` feature. In that case an
         // unavailable external backend must fail closed rather than be judged

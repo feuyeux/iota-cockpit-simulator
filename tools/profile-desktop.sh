@@ -140,9 +140,9 @@ find_pid() {
   if [[ -z "$matches" && -z "$PROCESS_PATTERN" ]]; then
     # Fall back to the sidecar only when the Tauri host is not present.
     if [[ "$(uname -s)" == Darwin ]]; then
-      matches="$(ps -axo pid=,comm= | awk 'substr($0, length($0) - length("/cockpit-runner") + 1) == "/cockpit-runner" {print $1}')"
+      matches="$(ps -axo pid=,comm= | awk 'substr($0, length($0) - length("/cockpit-simulator") + 1) == "/cockpit-simulator" {print $1}')"
     else
-      matches="$(ps -eo pid=,comm= | awk 'substr($0, length($0) - length("/cockpit-runner") + 1) == "/cockpit-runner" {print $1}')"
+      matches="$(ps -eo pid=,comm= | awk 'substr($0, length($0) - length("/cockpit-simulator") + 1) == "/cockpit-simulator" {print $1}')"
     fi
   fi
   [[ -n "$matches" ]] || die "Cockpit Desktop is not running. Start it first with ./run.sh or npm run tauri:dev."

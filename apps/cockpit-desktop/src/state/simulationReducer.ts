@@ -1,7 +1,7 @@
 import { APP_CONFIG } from "../config/constants";
 import { persistApprovalMode, persistRunId, persistScenario } from "../utils/storage";
 import type {
-  RunnerEvent,
+  SimulatorEvent,
   ScenarioSummary,
   SimulationError,
   SimulationModel
@@ -25,8 +25,8 @@ export type SimulationAction =
   | { type: "snapshotReset"; snapshot: import("../types/simulation").WorldSnapshot; cursor: number }
   | { type: "snapshotUpdated"; snapshot: import("../types/simulation").WorldSnapshot; cursor: number }
   | { type: "commandRejected"; error: SimulationError }
-  | { type: "runnerEvent"; event: RunnerEvent }
-  | { type: "runnerEvents"; events: RunnerEvent[] };
+  | { type: "simulatorEvent"; event: SimulatorEvent }
+  | { type: "simulatorEvents"; events: SimulatorEvent[] };
 
 export const initialSimulationModel: SimulationModel = {
   state: "disconnected",
@@ -140,14 +140,14 @@ export function simulationReducer(
             : state.state,
         error: action.error
       };
-    case "runnerEvent":
-      return reduceRunnerEvent(state, action.event);
-    case "runnerEvents":
-      return action.events.reduce(reduceRunnerEvent, state);
+    case "simulatorEvent":
+      return reduceSimulatorEvent(state, action.event);
+    case "simulatorEvents":
+      return action.events.reduce(reduceSimulatorEvent, state);
   }
 }
 
-function reduceRunnerEvent(state: SimulationModel, event: RunnerEvent): SimulationModel {
+function reduceSimulatorEvent(state: SimulationModel, event: SimulatorEvent): SimulationModel {
   switch (event.type) {
     case "SimulationStateChanged":
       return { ...state, state: event.state, runId: event.runId ?? state.runId };

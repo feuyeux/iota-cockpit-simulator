@@ -3,7 +3,7 @@
 // The Rust trace boundary already redacts before emitting, but exports,
 // screenshots, and issue/runbook output are separate egress paths and must
 // redact defensively so a secret injected downstream never reaches disk.
-// This mirrors `redact_json` / `sensitive_key` in `cockpit-agent-runtime`.
+// This mirrors `redact_json` / `sensitive_key` in `cockpit-agent`.
 
 export const REDACTED_SECRET = "[REDACTED]";
 

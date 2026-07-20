@@ -79,8 +79,8 @@ const mocks = vi.hoisted(() => ({
   evaluateRun: vi.fn(),
   listEvaluationReports: vi.fn(async () => [] as EvaluationReportRecord[])
 }));
-vi.mock("../runnerClient", () => ({
-  runnerClient: {
+vi.mock("../simulatorClient", () => ({
+  simulatorClient: {
     evaluateRun: mocks.evaluateRun,
     listEvaluationReports: mocks.listEvaluationReports
   }
@@ -132,7 +132,7 @@ describe("IndependentEvaluationPanel", () => {
     });
 
     expect(mocks.evaluateRun).toHaveBeenCalledWith("run-1", "smoke-in-cockpit");
-    expect(container.textContent).toContain("PASS");
+    expect(container.textContent).toContain("pass");
     expect(container.textContent).toContain("shutdown-before-spread");
     expect(container.textContent).toContain("EngineShutdown");
     expect(container.textContent).toContain("双 Judge 一致");
@@ -155,7 +155,7 @@ describe("IndependentEvaluationPanel", () => {
         </I18nProvider>
       );
     });
-    expect(container.textContent).toContain("PASS");
+    expect(container.textContent).toContain("pass");
     expect(container.textContent).toContain("run-1");
 
     await act(async () => {
@@ -166,7 +166,7 @@ describe("IndependentEvaluationPanel", () => {
       );
     });
 
-    expect(container.textContent).not.toContain("PASS");
+    expect(container.textContent).not.toContain("pass");
     expect(container.textContent).not.toContain("run-1");
   });
 });

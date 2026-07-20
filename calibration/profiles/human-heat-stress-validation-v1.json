@@ -1,7 +1,7 @@
 {
   "claimLevel": "experimentally-anchored-not-fitted",
   "limitations": [
-    "runner endpoints were graph-digitized and are not raw observations",
+    "simulator endpoints were graph-digitized and are not raw observations",
     "exercise metabolism and clothing were not fitted",
     "passive study measured one thigh site rather than whole-body mean skin temperature",
     "sweat feedback and Lewis capacity parameters remain engineering values",

@@ -8,7 +8,7 @@
 ///
 /// This normalizes all the shapes we can realistically receive:
 /// - a plain string (the common Tauri case)
-/// - an `Error` instance (thrown by our own client code, e.g. runnerClient)
+/// - an `Error` instance (thrown by our own client code, e.g. simulatorClient)
 /// - an object with a `message` string field (defensive fallback)
 /// - anything else falls back to the provided default.
 export function describeError(error: unknown, fallback: string): string {

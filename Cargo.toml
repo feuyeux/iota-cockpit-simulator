@@ -7,14 +7,14 @@ publish = false
 
 [workspace]
 members = [
-  "crates/cockpit-simulation-core",
+  "crates/cockpit-world",
   "crates/cockpit-scenario",
   "crates/cockpit-recording",
   "crates/cockpit-evaluation",
   "crates/cockpit-evaluator",
-  "crates/cockpit-judge-provider",
-  "crates/cockpit-agent-runtime",
-  "crates/cockpit-runner",
+  "crates/cockpit-judge",
+  "crates/cockpit-agent",
+  "crates/cockpit-simulator",
   "crates/cockpit-plugin",
   "apps/cockpit-desktop/src-tauri",
 ]
@@ -38,30 +38,30 @@ tokio = { version = "1.52.3", features = ["macros", "rt", "rt-multi-thread", "ti
 tokio-util = "0.7.18"
 thiserror = "2.0.18"
 libc = "0.2.186"
-cockpit-simulation-core = { path = "crates/cockpit-simulation-core" }
+cockpit-world = { path = "crates/cockpit-world" }
 cockpit-scenario = { path = "crates/cockpit-scenario" }
 cockpit-recording = { path = "crates/cockpit-recording" }
 cockpit-evaluation = { path = "crates/cockpit-evaluation" }
-cockpit-agent-runtime = { path = "crates/cockpit-agent-runtime" }
-cockpit-runner = { path = "crates/cockpit-runner" }
+cockpit-agent = { path = "crates/cockpit-agent" }
+cockpit-simulator = { path = "crates/cockpit-simulator" }
 cockpit-plugin = { path = "crates/cockpit-plugin" }
 # Use the published package while retaining the `iota-core` dependency alias
 # and `iota_core` Rust library import for source compatibility.
 iota-core = { package = "iota-sympantos-core", version = "0.1.0", default-features = false }
 
 [features]
-# Opt-in real iota-core ACP backend, forwarded to the runner and agent runtime.
+# Opt-in real iota-core ACP backend, forwarded to the simulator and agent runtime.
 # The default build keeps live-agent tests deterministic and offline.
 default = []
-live-acp = ["cockpit-runner/live-acp"]
+live-acp = ["cockpit-simulator/live-acp"]
 
 [dependencies]
-cockpit-simulation-core.workspace = true
+cockpit-world.workspace = true
 cockpit-scenario.workspace = true
 cockpit-recording.workspace = true
 cockpit-evaluation.workspace = true
-cockpit-agent-runtime.workspace = true
-cockpit-runner.workspace = true
+cockpit-agent.workspace = true
+cockpit-simulator.workspace = true
 cockpit-plugin.workspace = true
 
 [dev-dependencies]
@@ -80,8 +80,8 @@ name = "mcp_boundary"
 path = "tests/contract/mcp_boundary.rs"
 
 [[test]]
-name = "runner_ipc"
-path = "tests/contract/runner_ipc.rs"
+name = "simulator_ipc"
+path = "tests/contract/simulator_ipc.rs"
 
 [[test]]
 name = "recording_store"
@@ -96,8 +96,8 @@ name = "acp_adapter"
 path = "tests/contract/acp_adapter.rs"
 
 [[test]]
-name = "runner_server"
-path = "tests/contract/runner_server.rs"
+name = "simulator_server"
+path = "tests/contract/simulator_server.rs"
 
 [[test]]
 name = "plugin_host"
@@ -128,8 +128,8 @@ name = "influence_rules"
 path = "tests/contract/influence_rules.rs"
 
 [[test]]
-name = "runner_restart"
-path = "tests/contract/runner_restart.rs"
+name = "simulator_restart"
+path = "tests/contract/simulator_restart.rs"
 
 
 [[test]]

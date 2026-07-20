@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { SimulationSourcePanel } from "./SimulationSourcePanel";
 import { I18nProvider } from "../i18n";
-import { runnerClient } from "../runnerClient";
+import { simulatorClient } from "../simulatorClient";
 import { initialSimulationModel } from "../state/simulationReducer";
 
 let container: HTMLDivElement | null = null;
@@ -37,8 +37,8 @@ afterEach(() => {
 
 describe("SimulationSourcePanel", () => {
   it("does not start auto-run when scenario validation fails", async () => {
-    const validateScenario = vi.spyOn(runnerClient, "validateScenario").mockRejectedValueOnce(new Error("invalid scenario"));
-    const start = vi.spyOn(runnerClient, "start").mockResolvedValueOnce();
+    const validateScenario = vi.spyOn(simulatorClient, "validateScenario").mockRejectedValueOnce(new Error("invalid scenario"));
+    const start = vi.spyOn(simulatorClient, "start").mockResolvedValueOnce();
     const element = render();
 
     await act(async () => {

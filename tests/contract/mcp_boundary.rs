@@ -1,10 +1,10 @@
-use cockpit_agent_runtime::{
+use cockpit_agent::{
     LocalMcpServer, OpenWorldControlRequest, TOOL_ADD_GOAL, TOOL_GET_ACTION_RESULT,
-    TOOL_GET_OBSERVATION, TOOL_LIST_VISIBLE_ENTITIES, TOOL_REQUEST_ACTION, TOOL_WAIT_UNTIL,
-    ToolRequest, iota_core_adapter::IotaCoreAdapter,
+    TOOL_GET_OBSERVATION, TOOL_GET_TURN_CONTEXT, TOOL_LIST_VISIBLE_ENTITIES, TOOL_REQUEST_ACTION,
+    TOOL_SUBMIT_DECISION, TOOL_WAIT_UNTIL, ToolRequest, iota_core_adapter::IotaCoreAdapter,
 };
 use cockpit_scenario::load_scenario;
-use cockpit_simulation_core::Simulation;
+use cockpit_world::Simulation;
 use serde_json::json;
 
 fn request(
@@ -37,11 +37,13 @@ fn exposes_phase_one_tools_and_keeps_ground_truth_out_of_observation() {
         .iter()
         .map(|definition| definition.name.as_str())
         .collect();
-    assert_eq!(names.len(), 8);
+    assert_eq!(names.len(), 10);
+    assert!(names.contains(&"simulation.get_turn_context"));
     assert!(names.contains(&"simulation.get_observation"));
     assert!(names.contains(&"simulation.list_visible_entities"));
     assert!(names.contains(&"simulation.inspect_sensor_quality"));
     assert!(names.contains(&"simulation.request_action"));
+    assert!(names.contains(&"simulation.submit_decision"));
     assert!(names.contains(&"simulation.get_action_result"));
     assert!(names.contains(&"simulation.get_run_status"));
     assert!(names.contains(&"simulation.add_goal"));
@@ -60,6 +62,11 @@ fn exposes_phase_one_tools_and_keeps_ground_truth_out_of_observation() {
             .iter()
             .any(|definition| definition.name == TOOL_GET_OBSERVATION && !definition.side_effect)
     );
+    assert!(
+        definitions
+            .iter()
+            .any(|definition| definition.name == TOOL_SUBMIT_DECISION && !definition.side_effect)
+    );
 
     let (response, trace) = server.call(
         &mut simulation,
@@ -74,6 +81,21 @@ fn exposes_phase_one_tools_and_keeps_ground_truth_out_of_observation() {
     assert!(response.result.get("smokeDensity").is_none());
     assert!(response.result.get("environment").is_none());
     assert!(!trace.result.to_string().contains("smokeDensity"));
+
+    let mut turn_context_request = request(
+        "contract-run",
+        "cockpit-agent",
+        TOOL_GET_TURN_CONTEXT,
+        json!({}),
+    );
+    turn_context_request.human_id = Some("pilot-1".to_string());
+    let (turn_context, trace) = server.call(&mut simulation, turn_context_request);
+    assert!(turn_context.error.is_none(), "{turn_context:?}");
+    assert!(turn_context.result.get("observation").is_some());
+    assert!(turn_context.result.get("sensorQuality").is_some());
+    assert!(turn_context.result.get("stateVersion").is_some());
+    assert!(!turn_context.result.to_string().contains("smokeDensity"));
+    assert!(!trace.side_effect);
 }
 
 #[test]
@@ -274,10 +296,7 @@ fn mutation_requires_approval_when_the_runtime_policy_enables_it() {
     let result = server
         .approve_action(&mut simulation, "call-simulation.request_action")
         .expect("approval applies");
-    assert_eq!(
-        result.status,
-        cockpit_simulation_core::ActionStatus::Applied
-    );
+    assert_eq!(result.status, cockpit_world::ActionStatus::Applied);
     simulation.step_without_agent().expect("tick commits");
     assert!(simulation.snapshot.device("engine-1").unwrap().shutdown);
 }
@@ -319,10 +338,7 @@ fn domain_action_requires_approval_before_world_state_changes() {
     let result = server
         .approve_action(&mut simulation, "call-simulation.request_action")
         .expect("approval applies");
-    assert_eq!(
-        result.status,
-        cockpit_simulation_core::ActionStatus::Applied
-    );
+    assert_eq!(result.status, cockpit_world::ActionStatus::Applied);
     simulation
         .step_without_agent()
         .expect("approved action commits");
@@ -335,8 +351,8 @@ fn iota_core_adapter_loads_cockpit_skill_from_public_registry() {
     let skill = IotaCoreAdapter::new(env!("CARGO_MANIFEST_DIR"))
         .load_cockpit_skill()
         .expect("skill is registered");
-    assert_eq!(skill.name, "cockpit-simulation");
-    assert_eq!(skill.version, "4");
+    assert_eq!(skill.name, "cockpit-world");
+    assert_eq!(skill.version, "6");
     assert!(skill.body.contains("Never request or infer Ground Truth"));
     assert!(
         skill
@@ -348,6 +364,7 @@ fn iota_core_adapter_loads_cockpit_skill_from_public_registry() {
             .tools
             .contains(&"simulation.request_action".to_string())
     );
+    assert!(skill.tools.contains(&TOOL_GET_TURN_CONTEXT.to_string()));
 }
 
 #[test]

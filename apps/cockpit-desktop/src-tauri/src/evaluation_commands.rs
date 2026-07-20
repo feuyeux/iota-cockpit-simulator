@@ -10,7 +10,7 @@ use cockpit_evaluation::plane::EvidenceVerdict;
 use cockpit_recording::Recording;
 use serde::{Deserialize, Serialize};
 
-use crate::runner_commands::RunnerState;
+use crate::simulator_commands::SimulatorState;
 
 const MAX_EVALUATOR_OUTPUT_BYTES: usize = 2 * 1024 * 1024;
 const MAX_HISTORY_REPORTS: usize = 100;
@@ -194,7 +194,10 @@ impl EvaluationState {
         paths.sort_by(|left, right| right.file_name().cmp(&left.file_name()));
         for path in paths.into_iter().skip(MAX_HISTORY_REPORTS) {
             fs::remove_file(&path).map_err(|error| {
-                format!("failed to prune evaluation history {}: {error}", path.display())
+                format!(
+                    "failed to prune evaluation history {}: {error}",
+                    path.display()
+                )
             })?;
         }
         Ok(())
@@ -215,7 +218,7 @@ impl EvaluationState {
                 reports.push(report);
             }
         }
-        reports.sort_by(|left, right| right.created_at_ms.cmp(&left.created_at_ms));
+        reports.sort_by_key(|report| std::cmp::Reverse(report.created_at_ms));
         reports.truncate(MAX_HISTORY_REPORTS);
         Ok(reports)
     }
@@ -223,12 +226,12 @@ impl EvaluationState {
 
 #[tauri::command]
 pub async fn evaluate_run(
-    runner: tauri::State<'_, RunnerState>,
+    simulator: tauri::State<'_, SimulatorState>,
     evaluator: tauri::State<'_, EvaluationState>,
     run_id: String,
     scenario_id: String,
 ) -> Result<EvaluationReportRecord, String> {
-    let recording = runner.recording_snapshot(&run_id)?;
+    let recording = simulator.recording_snapshot(&run_id)?;
     if recording.scenario_id != scenario_id {
         return Err("run scenario does not match the requested rubric".to_string());
     }
@@ -259,11 +262,14 @@ fn evaluator_binary(workspace_root: &Path) -> OsString {
     {
         return path.into_os_string();
     }
-    let debug_binary = workspace_root.join("target").join("debug").join(if cfg!(windows) {
-        "cockpit-evaluator.exe"
-    } else {
-        "cockpit-evaluator"
-    });
+    let debug_binary = workspace_root
+        .join("target")
+        .join("debug")
+        .join(if cfg!(windows) {
+            "cockpit-evaluator.exe"
+        } else {
+            "cockpit-evaluator"
+        });
     if debug_binary.is_file() {
         return debug_binary.into_os_string();
     }
@@ -315,13 +321,23 @@ fn safe_file_component(value: &str) -> String {
 
 fn default_judges_from_env() -> Result<JudgePairConfig, String> {
     let first = std::env::var_os("COCKPIT_JUDGE_A_BIN")
-        .map(|value| value.into_string().map_err(|_| "COCKPIT_JUDGE_A_BIN is not UTF-8".to_string()))
+        .map(|value| {
+            value
+                .into_string()
+                .map_err(|_| "COCKPIT_JUDGE_A_BIN is not UTF-8".to_string())
+        })
         .transpose()?;
     let second = std::env::var_os("COCKPIT_JUDGE_B_BIN")
-        .map(|value| value.into_string().map_err(|_| "COCKPIT_JUDGE_B_BIN is not UTF-8".to_string()))
+        .map(|value| {
+            value
+                .into_string()
+                .map_err(|_| "COCKPIT_JUDGE_B_BIN is not UTF-8".to_string())
+        })
         .transpose()?;
     if first.is_some() != second.is_some() {
-        return Err("COCKPIT_JUDGE_A_BIN and COCKPIT_JUDGE_B_BIN must be configured together".to_string());
+        return Err(
+            "COCKPIT_JUDGE_A_BIN and COCKPIT_JUDGE_B_BIN must be configured together".to_string(),
+        );
     }
     let parse_args = |name: &str| -> Result<Vec<String>, String> {
         let Some(value) = std::env::var_os(name) else {
@@ -330,7 +346,8 @@ fn default_judges_from_env() -> Result<JudgePairConfig, String> {
         let value = value
             .into_string()
             .map_err(|_| format!("{name} is not UTF-8"))?;
-        serde_json::from_str(&value).map_err(|error| format!("{name} must be a JSON string array: {error}"))
+        serde_json::from_str(&value)
+            .map_err(|error| format!("{name} must be a JSON string array: {error}"))
     };
     let timeout_ms = std::env::var("COCKPIT_JUDGE_TIMEOUT_MS")
         .ok()

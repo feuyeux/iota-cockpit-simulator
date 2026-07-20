@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use cockpit_simulation_core::{
+use cockpit_world::{
     action::AgentGrant,
     capability::CapabilityCatalog,
     clock::ClockConfig,
@@ -161,7 +161,7 @@ pub fn parse_scenario_bytes(bytes: &[u8]) -> SimulationResult<SimulationScenario
         humans,
         devices,
         alarm,
-        physics: cockpit_simulation_core::digital_twin::DigitalTwinParameters::default(),
+        physics: cockpit_world::digital_twin::DigitalTwinParameters::default(),
         faults: document
             .faults
             .into_iter()
@@ -290,7 +290,7 @@ fn validate_document(
                 influence.rule_id, influence.entity_id, influence.component_path
             )));
         }
-        if let cockpit_simulation_core::influence::InfluenceSchedule::Every { interval, .. } =
+        if let cockpit_world::influence::InfluenceSchedule::Every { interval, .. } =
             influence.schedule
             && interval == 0
         {

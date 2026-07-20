@@ -136,7 +136,7 @@ pub struct EvidenceVerdict {
 }
 
 /// Immutable request sent across the process boundary to a concrete model
-/// Judge. Providers receive no simulator, Runner, tool, or mutation handle.
+/// Judge. Providers receive no simulator, Simulator, tool, or mutation handle.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JudgeRequest {
@@ -401,15 +401,15 @@ fn collect_evidence(recording: &Recording, results: &[RuleVerdict]) -> Vec<Evide
             kind: format!("SafetyViolation:{}", violation.code),
         });
     }
-    if evidence.is_empty() {
-        if let Some(tick) = recording.ticks.last() {
-            evidence.push(EvidenceReference {
-                tick: tick.tick,
-                entity_id: None,
-                event_id: None,
-                kind: "FinalCommittedTick".to_string(),
-            });
-        }
+    if evidence.is_empty()
+        && let Some(tick) = recording.ticks.last()
+    {
+        evidence.push(EvidenceReference {
+            tick: tick.tick,
+            entity_id: None,
+            event_id: None,
+            kind: "FinalCommittedTick".to_string(),
+        });
     }
     evidence
 }

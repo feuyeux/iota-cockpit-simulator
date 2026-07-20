@@ -2,7 +2,7 @@
 
 ## Project Structure
 
-This repository is an independent Rust workspace for the cockpit simulation runtime. Core domain logic is in `crates/cockpit-simulation-core`; scenario parsing, agent integration, recording, evaluation, plugins, and runner IPC live in their respective `crates/cockpit-*` packages. The Tauri 2 + React + TypeScript desktop client is under `apps/cockpit-desktop` (frontend in `src`, native host in `src-tauri`). Example scenarios are in `scenarios/`. Contract, determinism, and integration tests are in `tests/`.
+This repository is an independent Rust workspace for the cockpit simulation runtime. Core domain logic is in `crates/cockpit-world`; scenario parsing, agent integration, recording, evaluation, plugins, and simulator IPC live in their respective `crates/cockpit-*` packages. The Tauri 2 + React + TypeScript desktop client is under `apps/cockpit-desktop` (frontend in `src`, native host in `src-tauri`). Example scenarios are in `scenarios/`. Contract, determinism, and integration tests are in `tests/`.
 
 ## Build, Test, and Development Commands
 
@@ -11,7 +11,7 @@ Run commands from the repository root unless noted:
 - `cargo test --workspace` runs all Rust unit and contract/integration tests.
 - `cargo clippy --workspace --all-targets -- -D warnings` enforces warning-free Rust code.
 - `cargo fmt --all --check` verifies formatting; use `cargo fmt --all` to apply it.
-- `cargo run -p cockpit-runner -- --help` checks the runner CLI and available options.
+- `cargo run -p cockpit-simulator -- --help` checks the simulator CLI and available options.
 - `npm test` in `apps/cockpit-desktop` runs the Vitest suite once.
 - `npm run test:tsc` in `apps/cockpit-desktop` performs the strict TypeScript check without emitting files.
 - `npm run build` in `apps/cockpit-desktop` creates the Vite production build.
@@ -28,8 +28,8 @@ Add focused tests beside the affected contract: determinism tests belong in `tes
 
 ## Commits and Pull Requests
 
-Use short imperative commit subjects, such as `Integrate plugin execution into runner ticks` or `Recover desktop state after stale event cursors`. Keep commits focused and avoid unrelated formatting churn. Pull requests should explain behavior and affected boundaries, list verification commands, link the relevant issue or requirement, and include screenshots for desktop UI changes. Do not claim MVP completion unless every bundled benchmark scenario in [`docs/user-guide-zh.md`](docs/user-guide-zh.md) has been run end to end with a passing evaluation.
+Use short imperative commit subjects, such as `Integrate plugin execution into simulator ticks` or `Recover desktop state after stale event cursors`. Keep commits focused and avoid unrelated formatting churn. Pull requests should explain behavior and affected boundaries, list verification commands, link the relevant issue or requirement, and include screenshots for desktop UI changes. Do not claim MVP completion unless every bundled benchmark scenario in [`docs/user-guide-zh.md`](docs/user-guide-zh.md) has been run end to end with a passing evaluation.
 
 ## Security and Architecture
 
-Ground truth is owned by the simulation service; agents access only authorized sensor observations and typed Action Gateway commands. Never commit secrets, API keys, hidden reasoning, or unredacted traces. `iota-core` is the external integration boundary and must remain isolated to `cockpit-agent-runtime`; do not add dependencies on iota CLI, desktop, kanban, or daemon protocols. Plugin output is untrusted and must pass manifest, permission, scope, version, and StateDiff validation.
+Ground truth is owned by the simulation service; agents access only authorized sensor observations and typed Action Gateway commands. Never commit secrets, API keys, hidden reasoning, or unredacted traces. `iota-core` is the external integration boundary and must remain isolated to `cockpit-agent`; do not add dependencies on iota CLI, desktop, kanban, or daemon protocols. Plugin output is untrusted and must pass manifest, permission, scope, version, and StateDiff validation.

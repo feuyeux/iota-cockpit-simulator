@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use cockpit_agent_runtime::{LocalMcpServer, RuleAgent};
-use cockpit_simulation_core::{
+use cockpit_agent::{LocalMcpServer, RuleAgent};
+use cockpit_world::{
     ScriptedAgent,
     action::{ActionRequest, ActionStatus},
     clock::ClockConfig,
@@ -18,9 +18,10 @@ pub mod store;
 /// Current recording schema version understood by this build. Version 2 adds
 /// an optional durable world-plus-agent checkpoint for live restart recovery.
 pub const CURRENT_SCHEMA_VERSION: u32 = 2;
-/// Current runtime contract version. Version 6 binds recordings to the
-/// humidity-coupled thermoregulation behavior and world-model identity.
-pub const CURRENT_RUNTIME_CONTRACT_VERSION: u32 = 6;
+/// Current runtime contract version. Version 7 introduces deterministic
+/// event-driven human scheduling, so older recordings cannot be replayed
+/// against a different backend-consumption schedule.
+pub const CURRENT_RUNTIME_CONTRACT_VERSION: u32 = 7;
 /// Current world-model version. Version 8 adds humidity-limited evaporative
 /// heat loss to two-node occupant thermoregulation; replay rejects prior
 /// physiology behavior rather than claiming deterministic equivalence.
@@ -32,9 +33,7 @@ pub use queue::{
     RecordingQueuePolicy,
 };
 pub use replay::replay_recording;
-pub use store::{
-    PayloadStore, RecordingStore, RecordingStoreError, serialize_redacted_recording,
-};
+pub use store::{PayloadStore, RecordingStore, RecordingStoreError, serialize_redacted_recording};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,13 +53,13 @@ pub struct Recording {
     /// narrative and utterance text is redacted; typed actions and state deltas
     /// remain available for deterministic replay without another model call.
     #[serde(default)]
-    pub human_turns: Vec<Vec<cockpit_agent_runtime::HumanTurnEvidence>>,
+    pub human_turns: Vec<Vec<cockpit_agent::HumanTurnEvidence>>,
     #[serde(default)]
     pub provenance: RunProvenance,
     /// Latest restartable world-plus-agent control-plane checkpoint for live
     /// runs. Evaluators may inspect it but never mutate it.
     #[serde(default)]
-    pub open_world_checkpoint: Option<cockpit_agent_runtime::OpenWorldCheckpoint>,
+    pub open_world_checkpoint: Option<cockpit_agent::OpenWorldCheckpoint>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,7 +101,7 @@ impl Recording {
     }
 
     /// Record one tick's backend-authored human decisions (live runs only).
-    pub fn push_human_turns(&mut self, turns: Vec<cockpit_agent_runtime::HumanTurnEvidence>) {
+    pub fn push_human_turns(&mut self, turns: Vec<cockpit_agent::HumanTurnEvidence>) {
         self.human_turns.push(turns);
     }
 

@@ -21,10 +21,10 @@ mod suite;
 #[command(name = "cockpit-evaluator")]
 #[command(about = "Evaluate immutable cockpit recordings outside the simulation process")]
 struct Cli {
-    /// Immutable recording JSON produced by the runner/recording store export.
+    /// Immutable recording JSON produced by the simulator/recording store export.
     #[arg(long)]
     recording: Option<PathBuf>,
-    /// Runner recording SQLite database; requires --run-id.
+    /// Simulator recording SQLite database; requires --run-id.
     #[arg(long)]
     recording_db: Option<PathBuf>,
     /// Run ID to load from --recording-db.
@@ -36,9 +36,9 @@ struct Cli {
     /// Batch suite YAML containing scenario/recording cases and private rubric paths.
     #[arg(long)]
     suite: Option<PathBuf>,
-    /// Runner executable used only for suite cases that define a scenario.
-    #[arg(long, default_value = "cockpit-runner")]
-    runner_command: PathBuf,
+    /// Simulator executable used only for suite cases that define a scenario.
+    #[arg(long, default_value = "cockpit-simulator")]
+    simulator_command: PathBuf,
     /// Optional JSON batch report output path.
     #[arg(long)]
     json_report: Option<PathBuf>,
@@ -356,7 +356,7 @@ fn main() -> anyhow::Result<()> {
         }
         let report = suite::run_suite(
             suite_path,
-            &cli.runner_command,
+            &cli.simulator_command,
             cli.minimum_pass_rate,
             cli.baseline.as_deref(),
             |input, rubric| evaluate_input(&cli, &input, &rubric),

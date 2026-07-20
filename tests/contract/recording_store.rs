@@ -1,6 +1,4 @@
-use cockpit_agent_runtime::{
-    HumanDecision, HumanTurnEvidence, OpenWorldCheckpoint, OpenWorldRuntime,
-};
+use cockpit_agent::{HumanDecision, HumanTurnEvidence, OpenWorldCheckpoint, OpenWorldRuntime};
 use cockpit_recording::{
     AsyncRecordingSink, Recording, RecordingQueueOutcome, RecordingQueuePolicy, RecordingStore,
     RunProvenance, run_rule_agent_recording,
@@ -35,7 +33,7 @@ fn sqlite_recording_round_trip_preserves_live_human_turns() {
     let mut recording = Recording::new("sqlite-live-run", &scenario);
     let mut runtime = OpenWorldRuntime::default();
     runtime.ensure_agent("pilot-1", "protect occupants", 0);
-    let world = cockpit_simulation_core::Simulation::new("sqlite-live-run", scenario.clone());
+    let world = cockpit_world::Simulation::new("sqlite-live-run", scenario.clone());
     recording.open_world_checkpoint = Some(OpenWorldCheckpoint::capture(&world.snapshot, &runtime));
     recording.provenance = RunProvenance {
         suite_id: Some("release-suite".to_string()),

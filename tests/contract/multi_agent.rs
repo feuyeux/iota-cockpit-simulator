@@ -1,8 +1,8 @@
-use cockpit_agent_runtime::{
+use cockpit_agent::{
     AgentActionBatch, AgentLifecycle, MultiAgentCoordinator, OpenWorldCheckpoint, OpenWorldRuntime,
 };
 use cockpit_scenario::load_scenario;
-use cockpit_simulation_core::{ActionRequest, ActionStatus, DynamicEntity, HumanState, Simulation};
+use cockpit_world::{ActionRequest, ActionStatus, DynamicEntity, HumanState, Simulation};
 
 fn action(agent_id: &str, request_id: &str, version: u64) -> ActionRequest {
     ActionRequest {
@@ -19,7 +19,7 @@ fn action(agent_id: &str, request_id: &str, version: u64) -> ActionRequest {
 #[test]
 fn multi_agent_arbitration_is_priority_then_stable_and_conflict_safe() {
     let mut scenario = load_scenario("scenarios/smoke-in-cockpit.yaml").expect("scenario loads");
-    scenario.agents.push(cockpit_simulation_core::AgentGrant {
+    scenario.agents.push(cockpit_world::AgentGrant {
         agent_id: "copilot-agent".to_string(),
         capabilities: vec!["engine.shutdown".to_string()],
     });
@@ -47,7 +47,7 @@ fn multi_agent_arbitration_is_priority_then_stable_and_conflict_safe() {
     assert_eq!(results[1].status, ActionStatus::Rejected);
     assert_eq!(
         results[1].error_code,
-        Some(cockpit_simulation_core::ErrorCode::ActionConflict)
+        Some(cockpit_world::ErrorCode::ActionConflict)
     );
     simulation.step_without_agent().expect("tick commits");
     assert!(simulation.snapshot.device("engine-1").unwrap().shutdown);
@@ -88,7 +88,7 @@ fn actions_with_overlapping_effects_are_conflict_safe() {
     assert_eq!(second.status, ActionStatus::Rejected);
     assert_eq!(
         second.error_code,
-        Some(cockpit_simulation_core::ErrorCode::ActionConflict)
+        Some(cockpit_world::ErrorCode::ActionConflict)
     );
 }
 
@@ -110,8 +110,10 @@ fn dynamic_entities_receive_independent_sessions_and_can_be_retired() {
         event.event_type == "EntitySpawned" && event.payload.target.as_deref() == Some("guest-1")
     }));
 
-    let mut runtime = OpenWorldRuntime::default();
-    runtime.concurrent_agent_budget = 1;
+    let mut runtime = OpenWorldRuntime {
+        concurrent_agent_budget: 1,
+        ..OpenWorldRuntime::default()
+    };
     runtime.ensure_agent("pilot-1", "protect occupants", 0);
     runtime.ensure_agent("guest-1", "find a safe place", 0);
     runtime.sessions.get_mut("guest-1").unwrap().budget.priority = 5;

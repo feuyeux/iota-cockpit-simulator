@@ -1,5 +1,5 @@
 use cockpit_recording::Recording;
-use cockpit_simulation_core::action::ActionStatus;
+use cockpit_world::action::ActionStatus;
 use serde::{Deserialize, Serialize};
 
 pub mod plane;
@@ -328,7 +328,7 @@ pub fn mark_execution_failed(
 /// default smoke-shutdown evaluator when `rule_id` is `None`, and localize the
 /// human-readable explanation to `language` ("en" or "zh"). This keeps
 /// evaluation resource-driven and bilingual: a scenario names its rule (via
-/// `evaluation[0].id`) and its `language`, and the runner dispatches here
+/// `evaluation[0].id`) and its `language`, and the simulator dispatches here
 /// rather than hardcoding a single English evaluator at the call site. An
 /// unrecognized rule id yields a failing result that names the missing
 /// evaluator rather than silently passing.

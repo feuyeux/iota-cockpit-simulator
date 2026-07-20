@@ -1,5 +1,5 @@
 use cockpit_scenario::load_scenario;
-use cockpit_simulation_core::{
+use cockpit_world::{
     ConflictPolicy, InfluenceOp, InfluenceRule, InfluenceSchedule, Simulation, SimulationScenario,
 };
 

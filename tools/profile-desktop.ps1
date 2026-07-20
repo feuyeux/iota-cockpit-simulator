@@ -47,7 +47,7 @@ if ($ProcessId) {
         $targets = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^(cockpit-desktop|Cockpit Simulation)(\.exe)?$' })
     }
     if ($targets.Count -eq 0 -and -not $ProcessPattern) {
-        $targets = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^cockpit-runner(\.exe)?$' })
+        $targets = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^cockpit-simulator(\.exe)?$' })
     }
     if ($targets.Count -eq 0) { throw 'Cockpit Desktop is not running. Start it first, then retry.' }
     $selected = $targets | Sort-Object CreationDate, ProcessId | Select-Object -Last 1

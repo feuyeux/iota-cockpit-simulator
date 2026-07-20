@@ -10,7 +10,7 @@ import { SimulationNarrative } from "./components/SimulationNarrative";
 import { SimulationProgress } from "./components/SimulationProgress";
 import { findBenchmarkScenarioByPath } from "./config/scenarioCatalog";
 import { KEYBOARD_SHORTCUTS } from "./config/constants";
-import { runnerClient } from "./runnerClient";
+import { simulatorClient } from "./simulatorClient";
 import { initialSimulationModel, simulationReducer } from "./state/simulationReducer";
 import { exponentialBackoff } from "./utils/reconnect";
 import { loadPersistedSession } from "./utils/storage";
@@ -69,7 +69,7 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     dispatch({ type: "connectRequested" });
-    runnerClient
+    simulatorClient
       .connect()
       .then(() => {
         if (!cancelled) dispatch({ type: "connected" });
@@ -79,7 +79,7 @@ export function App() {
           dispatch({
             type: "disconnected",
             error: {
-              code: "RUNNER_CONNECT_FAILED",
+              code: "SIMULATOR_CONNECT_FAILED",
               message: error.message,
               correlationId: "desktop-connect"
             }
@@ -94,15 +94,15 @@ export function App() {
   async function reconnect() {
     dispatch({ type: "connectRequested" });
     const result = await exponentialBackoff(async () => {
-      await runnerClient.connect();
-      const batch = await runnerClient.snapshot(model.lastCursor);
+      await simulatorClient.connect();
+      const batch = await simulatorClient.snapshot(model.lastCursor);
       if (batch.resetRequired) {
-        const snapshot = await runnerClient.simulationSnapshot();
+        const snapshot = await simulatorClient.simulationSnapshot();
         dispatch({ type: "snapshotReset", snapshot, cursor: batch.firstAvailableCursor - 1 });
       }
-      if (batch.events.length > 0) dispatch({ type: "runnerEvents", events: batch.events });
+      if (batch.events.length > 0) dispatch({ type: "simulatorEvents", events: batch.events });
       if (batch.events.some((event) => event.type === "SimulationTickCommitted")) {
-        const snapshot = await runnerClient.simulationSnapshot();
+        const snapshot = await simulatorClient.simulationSnapshot();
         dispatch({ type: "snapshotUpdated", snapshot, cursor: batch.nextCursor });
       }
     });
@@ -113,7 +113,7 @@ export function App() {
       dispatch({
         type: "disconnected",
         error: {
-          code: "RUNNER_CONNECT_FAILED",
+          code: "SIMULATOR_CONNECT_FAILED",
           message: result.error?.message ?? `${t("reconnectFailed")}: ${result.attempts}`,
           correlationId: "desktop-reconnect"
         }
@@ -123,7 +123,7 @@ export function App() {
 
   return (
     <main className="flex h-dvh min-w-[1600px] flex-col overflow-hidden bg-zinc-950 text-zinc-100">
-      <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_minmax(340px,420px)_minmax(0,1fr)] items-center gap-5 border-b border-zinc-800 px-5 py-3">
+      <header className="grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-6 border-b border-zinc-800 px-5 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <Activity className="h-6 w-6 shrink-0 text-cyan-300" />
           <h1 className="min-w-0 truncate text-lg font-semibold tracking-wide">{t("appName")}</h1>
@@ -134,11 +134,11 @@ export function App() {
             {model.scenario?.id ?? t("noScenario")}
           </span>
         </div>
-        <div className="min-w-0 justify-self-center">
+        <div className="w-full max-w-[420px] justify-self-center px-4">
           <SimulationProgress tick={model.tick} deadlineTick={activeScenario?.deadlineTick} state={model.state} />
         </div>
         <div className="flex shrink-0 items-center justify-self-end gap-3 text-sm text-zinc-300">
-          <span className="flex items-center gap-2">
+          <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
             {model.serviceConnected ? (
               <Link className="h-4 w-4 text-emerald-300" />
             ) : (
@@ -147,7 +147,7 @@ export function App() {
             {stateLabel ? t(stateLabel) : model.state}
           </span>
           {preparingStatus ? (
-            <span aria-live="polite" className="flex items-center gap-2 text-cyan-200">
+            <span aria-live="polite" className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-cyan-200">
               <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" />
               {preparingStatus}
             </span>
@@ -155,30 +155,32 @@ export function App() {
           {!model.serviceConnected ? (
             <button
               aria-label={t("reconnect")}
-              className="border border-zinc-700 px-2.5 py-1 text-sm transition hover:bg-zinc-800"
+              className="shrink-0 rounded border border-zinc-700 bg-zinc-900/50 px-2.5 py-1 text-xs transition hover:bg-zinc-800 whitespace-nowrap"
               onClick={() => void reconnect()}
             >
               {t("reconnect")}
             </button>
           ) : null}
-          <span className="flex items-center gap-2">
-            <Gauge className="h-4 w-4 text-cyan-300" />
-            {t("tick")} {model.tick}
+          <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-zinc-400">
+            <Gauge className="h-4 w-4 shrink-0 text-cyan-300" />
+            {t("tick")} <span className="font-mono font-medium text-zinc-200">{model.tick}</span>
           </span>
-          <span className="flex max-w-52 items-center gap-1.5 truncate" title={model.backend}>
-            <Bot className="h-4 w-4 text-violet-300" />
-            {t("modelDrive")}
-            {model.backend ? ` · ${model.backend}` : ""}
+          <span className="flex max-w-48 shrink-0 items-center gap-1.5 text-zinc-400" title={model.backend}>
+            <Bot className="h-4 w-4 shrink-0 text-violet-300" />
+            <span className="truncate whitespace-nowrap">
+              {t("modelDrive")}
+              {model.backend ? ` · ${model.backend}` : ""}
+            </span>
           </span>
-          <div className="flex border border-zinc-700" aria-label={t("language")}>
+          <div className="flex shrink-0 overflow-hidden rounded border border-zinc-700 bg-zinc-950/40" aria-label={t("language")}>
             <button
-              className={`h-8 px-2.5 text-sm ${locale === "zh-CN" ? "bg-cyan-900 text-cyan-100" : "text-zinc-400"}`}
+              className={`h-7 px-2 text-xs font-medium transition-colors duration-150 ${locale === "zh-CN" ? "bg-cyan-950 text-cyan-300" : "text-zinc-400 hover:bg-zinc-900/50"}`}
               onClick={() => setLocale("zh-CN")}
             >
               中
             </button>
             <button
-              className={`h-8 px-2.5 text-sm ${locale === "en-US" ? "bg-cyan-900 text-cyan-100" : "text-zinc-400"}`}
+              className={`h-7 px-2 text-xs font-medium transition-colors duration-150 ${locale === "en-US" ? "bg-cyan-950 text-cyan-300" : "text-zinc-400 hover:bg-zinc-900/50"}`}
               onClick={() => setLocale("en-US")}
             >
               EN
@@ -187,14 +189,14 @@ export function App() {
           <button
             aria-label={showInsights ? t("close") : t("evaluation")}
             aria-pressed={showInsights}
-            className="border border-zinc-700 px-2.5 py-1 text-sm transition hover:bg-zinc-800"
+            className={`shrink-0 rounded border px-2.5 py-1 text-xs font-medium transition-all duration-150 whitespace-nowrap ${showInsights ? "border-cyan-700/60 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-950/60" : "border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300"}`}
             onClick={() => setShowInsights((visible) => !visible)}
           >
             {showInsights ? t("close") : t("evaluation")}
           </button>
           <button
             aria-label={t("keyboardShortcuts")}
-            className="control-button h-8 w-8"
+            className="control-button h-8 w-8 shrink-0 rounded transition-colors duration-150"
             onClick={() => setShowHelp(true)}
           >
             <HelpCircle className="h-4 w-4" />

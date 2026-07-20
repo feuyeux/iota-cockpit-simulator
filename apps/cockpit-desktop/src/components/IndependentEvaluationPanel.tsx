@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, Download, RefreshCw, Scale, ShieldAlert, XCircle } from "lucide-react";
-import { runnerClient } from "../runnerClient";
+import { simulatorClient } from "../simulatorClient";
 import type { EvaluationReportRecord, EvaluationVerdict, SimulationModel } from "../types/simulation";
 import { exportEvaluationReportAsJSON } from "../utils/export";
 import { useI18n } from "../i18n";
@@ -41,7 +41,7 @@ export function IndependentEvaluationPanel({ model }: { model: SimulationModel }
 
   useEffect(() => {
     let cancelled = false;
-    runnerClient.listEvaluationReports().then((reports) => {
+    simulatorClient.listEvaluationReports().then((reports) => {
       if (cancelled) return;
       setHistory(reports);
       const current = reports.find((report) => report.runId === model.runId);
@@ -61,7 +61,7 @@ export function IndependentEvaluationPanel({ model }: { model: SimulationModel }
     setRunning(true);
     setError(undefined);
     try {
-      const record = await runnerClient.evaluateRun(model.runId, model.scenario.id);
+      const record = await simulatorClient.evaluateRun(model.runId, model.scenario.id);
       setSelected(record);
       setHistory((reports) => [record, ...reports.filter((item) => item.id !== record.id)]);
     } catch (reason) {

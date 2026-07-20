@@ -1,8 +1,8 @@
 mod evaluation_commands;
-mod runner_commands;
+mod simulator_commands;
 
 use evaluation_commands::EvaluationState;
-use runner_commands::RunnerState;
+use simulator_commands::SimulatorState;
 use std::path::PathBuf;
 use tauri::Manager;
 
@@ -40,17 +40,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             let root = workspace_root(app);
-            let history_root = app
-                .path()
-                .app_data_dir()?
-                .join("evaluation-history");
+            let history_root = app.path().app_data_dir()?.join("evaluation-history");
             let evaluation = EvaluationState::new(
                 &root,
                 root.join("evaluations").join("private"),
                 history_root,
             )
             .map_err(std::io::Error::other)?;
-            let state = RunnerState::new(token, root);
+            let state = SimulatorState::new(token, root);
             let heartbeat_state = state.clone();
             std::thread::spawn(move || heartbeat_state.run_heartbeat_loop());
             app.manage(state);
@@ -58,24 +55,24 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            runner_commands::connect_runner,
-            runner_commands::validate_scenario,
-            runner_commands::create_live_simulation_run,
-            runner_commands::start_simulation,
-            runner_commands::pause_simulation,
-            runner_commands::step_live_simulation,
-            runner_commands::stop_simulation,
-            runner_commands::resume_simulation,
-            runner_commands::resume_live_simulation,
-            runner_commands::approve_action,
-            runner_commands::reject_action,
-            runner_commands::cancel_agent_turn,
-            runner_commands::cancel_live_turn,
-            runner_commands::set_approval_required,
-            runner_commands::start_replay,
-            runner_commands::diff_recordings,
-            runner_commands::get_simulation_events,
-            runner_commands::get_simulation_snapshot,
+            simulator_commands::connect_simulator,
+            simulator_commands::validate_scenario,
+            simulator_commands::create_live_simulation_run,
+            simulator_commands::start_simulation,
+            simulator_commands::pause_simulation,
+            simulator_commands::step_live_simulation,
+            simulator_commands::stop_simulation,
+            simulator_commands::resume_simulation,
+            simulator_commands::resume_live_simulation,
+            simulator_commands::approve_action,
+            simulator_commands::reject_action,
+            simulator_commands::cancel_agent_turn,
+            simulator_commands::cancel_live_turn,
+            simulator_commands::set_approval_required,
+            simulator_commands::start_replay,
+            simulator_commands::diff_recordings,
+            simulator_commands::get_simulation_events,
+            simulator_commands::get_simulation_snapshot,
             evaluation_commands::evaluate_run,
             evaluation_commands::list_evaluation_reports,
         ])

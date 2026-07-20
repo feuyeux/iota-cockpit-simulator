@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use cockpit_simulation_core::StepRecord;
+use cockpit_world::StepRecord;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -162,7 +162,7 @@ impl AsyncRecordingSink {
 #[cfg(test)]
 mod tests {
     use super::{RecordingQueue, RecordingQueueOutcome, RecordingQueuePolicy};
-    use cockpit_simulation_core::StepRecord;
+    use cockpit_world::StepRecord;
 
     fn step(tick: u64) -> StepRecord {
         serde_json::from_value(serde_json::json!({

@@ -4,7 +4,7 @@ use std::sync::{
 };
 use std::time::Duration;
 
-use cockpit_agent_runtime::{AgentRuntimePolicy, AgentTurnError};
+use cockpit_agent::{AgentRuntimePolicy, AgentTurnError};
 use tokio_util::sync::CancellationToken;
 
 /// A backend turn that exceeds the timeout is a fatal error, not a fallback

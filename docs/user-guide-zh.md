@@ -17,7 +17,7 @@
 
 ## 独立评测报告
 
-独立评测与运行时评测分离：Runner 提供本次运行的不可变 Recording，独立 evaluator 使用私有 rubric 生成证据报告。运行至少提交一个 tick 后按钮才可用。
+独立评测与运行时评测分离：Simulator 提供本次运行的不可变 Recording，独立 evaluator 使用私有 rubric 生成证据报告。运行至少提交一个 tick 后按钮才可用。
 
 阅读报告时重点检查：
 
@@ -29,13 +29,13 @@
 
 报告会保存在桌面应用历史中，最多显示最近的可用记录。切换到另一个 run 时，系统只自动选择与新 run 匹配的报告；没有匹配项时会清除旧选中结果。用户仍可主动点击历史按钮查看旧报告，但应始终以报告顶部身份为准。
 
-如果提示 Recording 与当前 Runner snapshot 不一致，说明进程模式下的 SQLite 持久记录尚未追上当前 run/tick。此时不要继续使用旧报告，应先处理 Runner 持久化错误，再重新执行独立评测。
+如果提示 Recording 与当前 Simulator snapshot 不一致，说明进程模式下的 SQLite 持久记录尚未追上当前 run/tick。此时不要继续使用旧报告，应先处理 Simulator 持久化错误，再重新执行独立评测。
 
 开发者需要的 batch suite、JSON/JUnit、基线回归和 sidecar 配置见[独立评测与发布门禁](./evaluation-zh.md)。
 
 ## 仿真与评测执行细节（10 个场景通用）
 
-以下内容说明"一键运行并评测"背后每个 tick 实际执行的步骤，以及评测抽屉两种判定各自依赖的代码路径。各场景章节的时序图使用的是 UI 组件视角；本节展开的是 `cockpit-simulation-core`/`cockpit-evaluation` 内部视角，两者描述的是同一次运行。
+以下内容说明"一键运行并评测"背后每个 tick 实际执行的步骤，以及评测抽屉两种判定各自依赖的代码路径。各场景章节的时序图使用的是 UI 组件视角；本节展开的是 `cockpit-world`/`cockpit-evaluation` 内部视角，两者描述的是同一次运行。
 
 ### 仿真侧：每个 tick 的提交顺序
 

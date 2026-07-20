@@ -1,7 +1,7 @@
 //! Regression coverage for a transient recording-persistence failure (disk
 //! full, permission denied, SQLite lock contention) during tick commit.
 //!
-//! Before the fix, `RunnerHandler::step`/`step_live` called
+//! Before the fix, `SimulatorHandler::step`/`step_live` called
 //! `self.persist_recording()?` *before* writing the locally-owned
 //! `Simulation` back to `self.simulation`. A storage error therefore
 //! propagated through `?` immediately, returning from the handler with
@@ -13,14 +13,14 @@ mod unix {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
 
-    use cockpit_runner::{
-        RunnerHandler,
-        ipc::proto::{IPC_VERSION, RunnerCommand, RunnerRequest},
+    use cockpit_simulator::{
+        SimulatorHandler,
+        ipc::proto::{IPC_VERSION, SimulatorCommand, SimulatorRequest},
     };
     use serde_json::Value;
 
-    fn request(command: RunnerCommand) -> RunnerRequest {
-        RunnerRequest {
+    fn request(command: SimulatorCommand) -> SimulatorRequest {
+        SimulatorRequest {
             version: IPC_VERSION,
             session_token: "persist-fail-token".to_string(),
             correlation_id: "persist-fail-correlation".to_string(),
@@ -35,20 +35,28 @@ mod unix {
             uuid::Uuid::new_v4()
         ));
         let database_path = database.to_string_lossy().to_string();
-        let mut handler =
-            RunnerHandler::new_persistent("persist-fail-token", &database_path).expect("handler");
+        let mut handler = SimulatorHandler::new_persistent("persist-fail-token", &database_path)
+            .expect("handler");
 
         assert!(
             handler
-                .dispatch(request(RunnerCommand::CreateSimulationRun {
+                .dispatch(request(SimulatorCommand::CreateSimulationRun {
                     path: "scenarios/smoke-in-cockpit.yaml".to_string(),
                 }))
                 .ok
         );
-        assert!(handler.dispatch(request(RunnerCommand::StartSimulation)).ok);
+        assert!(
+            handler
+                .dispatch(request(SimulatorCommand::StartSimulation))
+                .ok
+        );
         // At least one successful tick so the payload directory exists
         // before permissions are removed below.
-        assert!(handler.dispatch(request(RunnerCommand::StepSimulation)).ok);
+        assert!(
+            handler
+                .dispatch(request(SimulatorCommand::StepSimulation))
+                .ok
+        );
 
         let payload_root = database.with_extension("payloads");
         assert!(
@@ -62,10 +70,10 @@ mod unix {
             .expect("make payload root read-only");
 
         // The step itself must still succeed from the caller's perspective:
-        // the tick commit is a Simulation-Core-owned fact, and persistence
+        // the tick commit is a simulation-world-owned fact, and persistence
         // is best-effort. The response must report `ok: true`, not a hard
         // failure that discards the run.
-        let step_during_outage = handler.dispatch(request(RunnerCommand::StepSimulation));
+        let step_during_outage = handler.dispatch(request(SimulatorCommand::StepSimulation));
         assert!(
             step_during_outage.ok,
             "a persistence failure must not fail the step command: {step_during_outage:?}"
@@ -80,7 +88,7 @@ mod unix {
         // present. If it had been stranded, this next step would fail with
         // a "no run in progress" `NO_RUN` error instead of committing tick
         // 3.
-        let step_after_outage = handler.dispatch(request(RunnerCommand::StepSimulation));
+        let step_after_outage = handler.dispatch(request(SimulatorCommand::StepSimulation));
         assert!(
             step_after_outage.ok,
             "the run must remain controllable after a transient persistence failure: {step_after_outage:?}"
@@ -101,7 +109,7 @@ mod unix {
             "ticks must keep advancing without being stranded by the earlier persist failure"
         );
 
-        let events = handler.dispatch(request(RunnerCommand::GetSimulationEvents {
+        let events = handler.dispatch(request(SimulatorCommand::GetSimulationEvents {
             cursor: Some(0),
         }));
         assert!(events.ok, "{events:?}");

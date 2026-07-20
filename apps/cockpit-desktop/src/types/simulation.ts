@@ -393,8 +393,8 @@ export interface HumanTurnTrace {
   evidence: HumanTurnEvidence;
 }
 
-export interface RunnerEventBatch {
-  events: RunnerEvent[];
+export interface SimulatorEventBatch {
+  events: SimulatorEvent[];
   nextCursor: number;
   firstAvailableCursor: number;
   resetRequired: boolean;
@@ -422,7 +422,7 @@ export interface SimulationModel {
   lastCursor?: number;
 }
 
-export type RunnerEvent =
+export type SimulatorEvent =
   | { type: "SimulationStateChanged"; state: RunState; runId?: string }
   | {
       type: "SimulationTickCommitted";

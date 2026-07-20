@@ -21,7 +21,7 @@ describe("benchmark scenario catalog", () => {
     }
   });
 
-  it("matches a catalog scenario from relative, absolute, and Windows-style Runner paths", () => {
+  it("matches a catalog scenario from relative, absolute, and Windows-style Simulator paths", () => {
     const expected = BENCHMARK_SCENARIOS.find((scenario) => scenario.path === "scenarios/smoke-in-cockpit.yaml");
 
     expect(findBenchmarkScenarioByPath("scenarios/smoke-in-cockpit.yaml")).toBe(expected);

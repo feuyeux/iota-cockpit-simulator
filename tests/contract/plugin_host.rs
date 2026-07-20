@@ -5,7 +5,7 @@ use cockpit_plugin::{
     PluginPermission, PluginPolicy, PluginStatus, PluginTickOutcome, StateDiff,
 };
 use cockpit_scenario::load_scenario;
-use cockpit_simulation_core::Simulation;
+use cockpit_world::Simulation;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
@@ -51,10 +51,7 @@ struct StaticExecutor {
 }
 
 impl PluginExecutor for StaticExecutor {
-    fn tick(
-        &mut self,
-        _snapshot: &cockpit_simulation_core::WorldSnapshot,
-    ) -> Result<Vec<StateDiff>, String> {
+    fn tick(&mut self, _snapshot: &cockpit_world::WorldSnapshot) -> Result<Vec<StateDiff>, String> {
         self.output.clone()
     }
 }
@@ -64,10 +61,7 @@ struct SlowExecutor {
 }
 
 impl PluginExecutor for SlowExecutor {
-    fn tick(
-        &mut self,
-        _snapshot: &cockpit_simulation_core::WorldSnapshot,
-    ) -> Result<Vec<StateDiff>, String> {
+    fn tick(&mut self, _snapshot: &cockpit_world::WorldSnapshot) -> Result<Vec<StateDiff>, String> {
         std::thread::sleep(std::time::Duration::from_millis(self.sleep_ms));
         Ok(Vec::new())
     }

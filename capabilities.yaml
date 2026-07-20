@@ -1,6 +1,6 @@
 # Capability catalog: the authoritative, resource-driven definition of every
 # action a scenario agent may be granted. This file replaces the previous
-# hardcoded `Command` enum in `cockpit-simulation-core::action`. Adding a new
+# hardcoded `Command` enum in `cockpit-world::action`. Adding a new
 # scenario capability requires only a new entry here plus a scenario YAML
 # reference under `agents[].capabilities` -- no Rust code changes.
 #

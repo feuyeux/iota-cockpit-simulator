@@ -1,6 +1,6 @@
 use std::fs;
 
-use cockpit_agent_runtime::{HumanDecision, HumanTurnEvidence};
+use cockpit_agent::{HumanDecision, HumanTurnEvidence};
 use cockpit_recording::{RecordingStore, run_rule_agent_recording};
 use cockpit_scenario::load_scenario;
 use serde_json::{Value, json};
@@ -52,7 +52,10 @@ fn recording_payloads_redact_nested_secrets_before_writing_to_disk() {
         "prompt-must-not-persist",
         "token-must-not-persist",
     ] {
-        assert!(!exported.contains(secret), "exported recording contains {secret}");
+        assert!(
+            !exported.contains(secret),
+            "exported recording contains {secret}"
+        );
     }
     assert!(exported.contains("[REDACTED]"));
 

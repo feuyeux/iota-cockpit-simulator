@@ -1,6 +1,6 @@
 """Validate thermoregulation direction and humidity coupling without fitting cohort data.
 
-The runner study points are manually digitized from Figure 1 of Che Muhamed et al.
+The simulator study points are manually digitized from Figure 1 of Che Muhamed et al.
 (DOI 10.1080/23328940.2016.1182669). They are intentionally used only for
 ordinal checks because the protocol was exercise at 70% VO2max, not a resting
 vehicle occupant. The passive seated protocol from Malcolm et al. (DOI
@@ -15,9 +15,9 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CORE = ROOT / "crates" / "cockpit-simulation-core" / "src" / "digital_twin.rs"
+CORE = ROOT / "crates" / "cockpit-world" / "src" / "digital_twin.rs"
 PROFILE = ROOT / "calibration" / "profiles" / "human-heat-stress-validation-v1.json"
-RUNNER_FIGURE_SHA256 = "0775a043aa014d33bbd38a1f8c0919c84cb941e213040c6c181ec99905219f23"
+SIMULATOR_FIGURE_SHA256 = "0775a043aa014d33bbd38a1f8c0919c84cb941e213040c6c181ec99905219f23"
 
 # Approximate means read from the published 659 x 1255 Figure 1. The source
 # error bars are much larger than the +/-0.10 C digitization allowance. These
@@ -164,7 +164,7 @@ def main() -> None:
                 "participants": "11 trained males",
                 "protocol": "60 min at 31 C, 70% VO2max, 23-71% RH",
                 "figure": 1,
-                "figureSha256": RUNNER_FIGURE_SHA256,
+                "figureSha256": SIMULATOR_FIGURE_SHA256,
                 "sourceImageRedistributed": False,
                 "digitizationUncertaintyC": 0.10,
                 "digitized60MinMeans": DIGITIZED_60_MIN_C,
@@ -198,7 +198,7 @@ def main() -> None:
             "checks": checks,
         },
         "limitations": [
-            "runner endpoints were graph-digitized and are not raw observations",
+            "simulator endpoints were graph-digitized and are not raw observations",
             "exercise metabolism and clothing were not fitted",
             "passive study measured one thigh site rather than whole-body mean skin temperature",
             "sweat feedback and Lewis capacity parameters remain engineering values",

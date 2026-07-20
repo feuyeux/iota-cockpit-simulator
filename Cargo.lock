@@ -497,11 +497,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "cockpit-agent-runtime"
+name = "cockpit-agent"
 version = "0.1.0"
 dependencies = [
  "cockpit-scenario",
- "cockpit-simulation-core",
+ "cockpit-world",
  "iota-sympantos-core",
  "serde",
  "serde_json",
@@ -517,7 +517,7 @@ version = "0.1.0"
 dependencies = [
  "cockpit-evaluation",
  "cockpit-recording",
- "cockpit-runner",
+ "cockpit-simulator",
  "iota-sympantos-core",
  "serde",
  "serde_json",
@@ -532,7 +532,7 @@ version = "0.1.0"
 dependencies = [
  "cockpit-recording",
  "cockpit-scenario",
- "cockpit-simulation-core",
+ "cockpit-world",
  "serde",
  "serde_json",
  "sha2",
@@ -552,7 +552,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cockpit-judge-provider"
+name = "cockpit-judge"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -569,7 +569,7 @@ dependencies = [
 name = "cockpit-plugin"
 version = "0.1.0"
 dependencies = [
- "cockpit-simulation-core",
+ "cockpit-world",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -581,8 +581,8 @@ dependencies = [
 name = "cockpit-recording"
 version = "0.1.0"
 dependencies = [
- "cockpit-agent-runtime",
- "cockpit-simulation-core",
+ "cockpit-agent",
+ "cockpit-world",
  "rusqlite",
  "serde",
  "serde_json",
@@ -592,16 +592,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "cockpit-runner"
+name = "cockpit-scenario"
+version = "0.1.0"
+dependencies = [
+ "cockpit-world",
+ "serde",
+ "serde_yaml",
+ "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "cockpit-simulator"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "cockpit-agent-runtime",
+ "cockpit-agent",
  "cockpit-plugin",
  "cockpit-recording",
  "cockpit-scenario",
- "cockpit-simulation-core",
+ "cockpit-world",
  "iota-sympantos-core",
  "libc",
  "serde",
@@ -612,18 +623,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cockpit-scenario"
-version = "0.1.0"
-dependencies = [
- "cockpit-simulation-core",
- "serde",
- "serde_yaml",
- "sha2",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "cockpit-simulation-core"
+name = "cockpit-world"
 version = "0.1.0"
 dependencies = [
  "bincode",
@@ -1936,13 +1936,13 @@ dependencies = [
 name = "iota-cockpit"
 version = "0.1.0"
 dependencies = [
- "cockpit-agent-runtime",
+ "cockpit-agent",
  "cockpit-evaluation",
  "cockpit-plugin",
  "cockpit-recording",
- "cockpit-runner",
  "cockpit-scenario",
- "cockpit-simulation-core",
+ "cockpit-simulator",
+ "cockpit-world",
  "serde_json",
  "sha2",
  "tokio",

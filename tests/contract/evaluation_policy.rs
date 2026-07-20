@@ -7,7 +7,7 @@ use cockpit_evaluation::{
 };
 use cockpit_recording::run_rule_agent_recording;
 use cockpit_scenario::{load_scenario, parse_scenario_bytes};
-use cockpit_simulation_core::{
+use cockpit_world::{
     action::{ActionStatus, ErrorCode},
     event::ToolCallTrace,
 };

@@ -1,4 +1,4 @@
-use cockpit_runner::benchmark::{BenchmarkConfig, run};
+use cockpit_simulator::benchmark::{BenchmarkConfig, run};
 
 #[test]
 fn benchmark_report_is_reproducible_and_contains_capacity_dimensions() {

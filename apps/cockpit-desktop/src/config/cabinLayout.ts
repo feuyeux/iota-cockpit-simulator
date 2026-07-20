@@ -3,7 +3,7 @@
 ///
 /// The simulation core only models `location` as a free-text label (see
 /// WorldSnapshot.humans[].location and scenario YAML `components.location`),
-/// there is no coordinate system in cockpit-simulation-core. Rather than
+/// there is no coordinate system in cockpit-world. Rather than
 /// changing the scenario schema/backend, we keep a small label -> layout
 /// mapping here on the desktop side. Unknown labels fall back to a generic
 /// slot so the view never breaks on new scenarios.
