@@ -47,7 +47,7 @@ cockpit-simulator = { path = "crates/cockpit-simulator" }
 cockpit-plugin = { path = "crates/cockpit-plugin" }
 # Use the published package while retaining the `iota-core` dependency alias
 # and `iota_core` Rust library import for source compatibility.
-iota-core = { package = "iota-sympantos-core", version = "0.1.0", default-features = false }
+iota-core = { package = "iota-sympantos-core", version = "0.1.1", default-features = false }
 
 [features]
 # Opt-in real iota-core ACP backend, forwarded to the simulator and agent runtime.

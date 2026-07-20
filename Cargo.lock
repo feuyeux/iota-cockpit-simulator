@@ -1952,9 +1952,9 @@ dependencies = [
 
 [[package]]
 name = "iota-sympantos-core"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ba969a2edf2783a78f6ef86734580ab816e61c6c84bdf5f443ee5b8aa8b0549"
+checksum = "a3cb6d76736b47938121b6fb6dd37bc071a8ce24d3292f9068951fea6aa9a434"
 dependencies = [
  "anyhow",
  "chrono",
