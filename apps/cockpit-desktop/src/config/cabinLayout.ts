@@ -24,10 +24,10 @@ export interface AnchorLayout {
 }
 
 export const CABIN_ZONES: ZoneLayout[] = [
-  { id: "cockpit", label: "Cockpit", x: 4, y: 6, width: 40, height: 40 },
-  { id: "rear-left", label: "Rear Left", x: 4, y: 54, width: 40, height: 40 },
-  { id: "rear-right", label: "Rear Right", x: 56, y: 54, width: 40, height: 40 },
-  { id: "cabin", label: "Cabin", x: 56, y: 6, width: 40, height: 40 }
+  { id: "cockpit", label: "Cockpit", x: 2, y: 2, width: 47, height: 47 },
+  { id: "rear-left", label: "Rear Left", x: 2, y: 51, width: 47, height: 47 },
+  { id: "rear-right", label: "Rear Right", x: 51, y: 51, width: 47, height: 47 },
+  { id: "cabin", label: "Cabin", x: 51, y: 2, width: 47, height: 47 }
 ];
 
 const FALLBACK_ZONE: ZoneLayout = {

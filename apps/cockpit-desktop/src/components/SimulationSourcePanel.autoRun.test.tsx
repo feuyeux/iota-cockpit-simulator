@@ -5,11 +5,12 @@ import { SimulationSourcePanel } from "./SimulationSourcePanel";
 import { I18nProvider } from "../i18n";
 import { simulatorClient } from "../simulatorClient";
 import { initialSimulationModel } from "../state/simulationReducer";
+import type { EvaluationReportRecord } from "../types/simulation";
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
 
-function render(dispatch: ReturnType<typeof vi.fn>) {
+function render(dispatch: ReturnType<typeof vi.fn>, onEvaluationCompleted?: (report: EvaluationReportRecord) => void) {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -19,6 +20,7 @@ function render(dispatch: ReturnType<typeof vi.fn>) {
         <SimulationSourcePanel
           model={{ ...initialSimulationModel, state: "connectedIdle", serviceConnected: true, lastCursor: 0 }}
           dispatch={dispatch}
+          onEvaluationCompleted={onEvaluationCompleted}
         />
       </I18nProvider>
     );
@@ -40,6 +42,44 @@ afterEach(() => {
 });
 
 describe("SimulationSourcePanel auto-run", () => {
+  it("evaluates the persisted run after an automatic run completes", async () => {
+    const dispatch = vi.fn();
+    const onEvaluationCompleted = vi.fn();
+    const report = {
+      id: "report-run-complete",
+      createdAtMs: 1,
+      runId: "run-complete",
+      scenarioId: "smoke-in-cockpit",
+      report: { verdict: "pass" },
+    } as EvaluationReportRecord;
+    vi.spyOn(simulatorClient, "validateScenario").mockResolvedValue({
+      id: "smoke-in-cockpit",
+      path: "scenarios/smoke-in-cockpit.yaml",
+      schemaVersion: 1,
+      scenarioHash: "hash",
+      seed: 42,
+      agentId: "cockpit-agent",
+    });
+    vi.spyOn(simulatorClient, "createLiveRun").mockResolvedValue({ runId: "run-complete", backend: "synthetic" });
+    vi.spyOn(simulatorClient, "start").mockResolvedValue();
+    vi.spyOn(simulatorClient, "stepLive").mockResolvedValue({ status: "completed" });
+    vi.spyOn(simulatorClient, "snapshot").mockResolvedValue(emptyBatch());
+    const evaluateRun = vi.spyOn(simulatorClient, "evaluateRun").mockResolvedValue(report);
+    const element = render(dispatch, onEvaluationCompleted);
+
+    await act(async () => {
+      (element.querySelector('button[aria-label="一键运行"]') as HTMLButtonElement).click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(evaluateRun).toHaveBeenCalledWith("run-complete", "smoke-in-cockpit");
+    expect(onEvaluationCompleted).toHaveBeenCalledWith(report);
+  });
+
   it("adopts the Simulator failure event when a live turn times out", async () => {
     const dispatch = vi.fn();
     vi.spyOn(simulatorClient, "validateScenario").mockResolvedValue({

@@ -17,7 +17,13 @@ function VerdictIcon({ verdict }: { verdict: EvaluationVerdict }) {
   return <ShieldAlert className="h-4 w-4 text-amber-300" />;
 }
 
-export function IndependentEvaluationPanel({ model }: { model: SimulationModel }) {
+export function IndependentEvaluationPanel({
+  model,
+  completedReport,
+}: {
+  model: SimulationModel;
+  completedReport?: EvaluationReportRecord;
+}) {
   const { locale } = useI18n();
   const [history, setHistory] = useState<EvaluationReportRecord[]>([]);
   const [selected, setSelected] = useState<EvaluationReportRecord>();
@@ -53,6 +59,13 @@ export function IndependentEvaluationPanel({ model }: { model: SimulationModel }
     return () => { cancelled = true; };
   }, [model.runId]);
 
+  useEffect(() => {
+    if (!completedReport || completedReport.runId !== model.runId) return;
+    setSelected(completedReport);
+    setHistory((reports) => [completedReport, ...reports.filter((item) => item.id !== completedReport.id)]);
+    setError(undefined);
+  }, [completedReport, model.runId]);
+
   const canEvaluate = Boolean(model.runId && model.scenario?.id && model.tick > 0 && !running);
   const visibleHistory = useMemo(() => history.slice(0, 8), [history]);
 
@@ -78,7 +91,7 @@ export function IndependentEvaluationPanel({ model }: { model: SimulationModel }
         <Scale className="h-4 w-4 text-violet-300" />
         <h3 className="text-xs font-medium text-zinc-100">{text.title}</h3>
         <button
-          className="ml-auto border border-violet-700 px-2 py-1 text-[11px] text-violet-100 transition hover:bg-violet-950 disabled:cursor-not-allowed disabled:opacity-40"
+          className="ml-auto flex h-[26px] items-center rounded border border-violet-700 px-2 text-[11px] text-violet-100 transition hover:bg-violet-950 disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!canEvaluate}
           onClick={() => void evaluate()}
         >
@@ -159,7 +172,7 @@ export function IndependentEvaluationPanel({ model }: { model: SimulationModel }
               <div title={report.schemaHash}>schema {report.schemaHash}</div>
             </div>
           </details>
-          <button className="border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800" onClick={() => exportEvaluationReportAsJSON(selected)}>
+          <button className="flex h-[26px] items-center rounded border border-zinc-700 px-2 text-[11px] text-zinc-300 transition hover:bg-zinc-800" onClick={() => exportEvaluationReportAsJSON(selected)}>
             <Download className="mr-1 inline h-3 w-3" />{text.export}
           </button>
         </div>

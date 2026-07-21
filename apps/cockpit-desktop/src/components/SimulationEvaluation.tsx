@@ -1,6 +1,6 @@
 import type * as React from "react";
 import { AlertCircle, Bot, CheckCircle2, CircleDot, XCircle, Zap } from "lucide-react";
-import type { SimulationModel } from "../types/simulation";
+import type { EvaluationReportRecord, SimulationModel } from "../types/simulation";
 import { useI18n } from "../i18n";
 import { evaluationExplanation, commandLabel, eventLabel, alertLabel, actionStatusLabel } from "../utils/domainPresentation";
 import { BENCHMARK_SCENARIOS, localize } from "../config/scenarioCatalog";
@@ -25,7 +25,13 @@ function ProcessRow({ icon, title, detail, complete }: ProcessRowProps) {
   );
 }
 
-export function SimulationEvaluation({ model }: { model: SimulationModel }) {
+export function SimulationEvaluation({
+  model,
+  completedReport,
+}: {
+  model: SimulationModel;
+  completedReport?: EvaluationReportRecord;
+}) {
   const { locale, t } = useI18n();
   const evaluation = model.evaluation;
   const scenario = BENCHMARK_SCENARIOS.find((item) => item.path === model.scenario?.path);
@@ -70,8 +76,10 @@ export function SimulationEvaluation({ model }: { model: SimulationModel }) {
   const safetyCodes = evaluation?.safetyViolations?.map((violation) => `${violation.code} · t${violation.tick}`) ?? [];
 
   return (
-    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border border-zinc-800 bg-zinc-900/70">
-      <div className="shrink-0 border-b border-zinc-800 px-3 py-2 text-sm font-medium">{text.process}</div>
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-zinc-800/80 bg-zinc-900/60 backdrop-blur-sm">
+      <div className="shrink-0 border-b border-zinc-800/80 bg-zinc-900/80 px-3.5 py-2 text-xs font-semibold text-zinc-100">
+        <span className="tracking-wide">{text.process}</span>
+      </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {scenario ? (
           <div className="border border-cyan-800/60 bg-cyan-950/20 p-2.5 text-xs">
@@ -112,7 +120,7 @@ export function SimulationEvaluation({ model }: { model: SimulationModel }) {
           ) : <div className="text-xs text-zinc-500">{t("noEvaluation")}</div>}
         </div>
 
-        <IndependentEvaluationPanel model={model} />
+        <IndependentEvaluationPanel model={model} completedReport={completedReport} />
 
         <div className="rounded border border-zinc-800 bg-zinc-950/50 p-2.5 text-[11px] leading-5 text-zinc-400"><span className="mr-1 font-medium text-zinc-200">{text.guide}：</span>{guide}</div>
       </div>

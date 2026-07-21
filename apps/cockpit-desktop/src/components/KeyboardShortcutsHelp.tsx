@@ -1,6 +1,5 @@
 import { X } from "lucide-react";
 import { useI18n } from "../i18n";
-import { KEYBOARD_SHORTCUTS } from "../config/constants";
 
 interface Props {
   visible: boolean;
@@ -24,7 +23,7 @@ export function KeyboardShortcutsHelp({ visible, onClose }: Props) {
           <h2 className="text-lg font-semibold">{t("keyboardShortcuts")}</h2>
           <button
             aria-label={t("close")}
-            className="control-button h-6 w-6"
+            className="control-button h-[26px] w-[26px]"
             onClick={onClose}
           >
             <X className="h-4 w-4" />

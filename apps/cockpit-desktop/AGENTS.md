@@ -12,8 +12,8 @@ Run these commands from this directory (prefix with `rtk` when available):
 - `npm test` runs the Vitest suite once; use `npm run test:watch` for interactive development.
 - `npm run test:tsc` performs the strict TypeScript check without emitting files.
 - `npm run build` type-checks and creates the Vite production bundle.
-- `npm run tauri:dev` prepares the simulator sidecar and launches the desktop app.
-- `npm run tauri:build` prepares the sidecar and creates installable Tauri artifacts.
+- `npm run tauri:dev` prepares the simulator sidecar and launches the desktop app. This is the canonical development launcher; it triggers Tauri's `beforeDevCommand`, which starts the Vite dev server on `127.0.0.1:15342`. From the repository root you can run `./run.sh` to do the same thing with extra diagnostics.
+- `npm run tauri:build` prepares the sidecar and creates installable Tauri artifacts. The produced bundle embeds the frontend via `frontendDist`, so it does not need Vite at runtime.
 
 For Rust workspace checks, run `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo fmt --all --check` from the repository root.
 

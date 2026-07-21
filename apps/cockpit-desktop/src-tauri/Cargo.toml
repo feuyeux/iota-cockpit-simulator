@@ -2,7 +2,7 @@
 name = "cockpit-desktop"
 version = "0.1.0"
 description = "Cockpit simulation desktop host"
-authors = ["Cockpit Simulation"]
+authors = ["Iota Cockpit"]
 edition = "2024"
 rust-version = "1.95.0"
 publish = false

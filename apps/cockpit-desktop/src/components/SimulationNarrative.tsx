@@ -45,10 +45,10 @@ export function SimulationNarrative({ model }: { model: SimulationModel }) {
   const humans = model.snapshot?.humans ?? [];
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden border border-zinc-800 bg-zinc-900/70">
-      <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-3 py-2 text-sm font-medium">
-        <span>{t("dialoguePerception")}</span>
-        <span className="text-xs text-zinc-500">{t("perPersonFeed")}</span>
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-zinc-900/60 backdrop-blur-sm">
+      <div className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-900/80 px-3.5 py-2 text-xs font-semibold text-zinc-100">
+        <span className="tracking-wide">{t("dialoguePerception")}</span>
+        <span className="text-[11px] font-normal text-zinc-400">{t("perPersonFeed")}</span>
       </div>
       {humans.length === 0 ? (
         <div className="p-4 text-xs text-zinc-500">

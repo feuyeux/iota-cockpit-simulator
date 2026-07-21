@@ -7,6 +7,22 @@ CLEAN=false
 
 usage() {
   echo "Usage: $0 [--clean]" >&2
+  echo >&2
+  echo "Cockpit Desktop is a Tauri 2 app whose Webview loads the React frontend" >&2
+  echo "from a running Vite dev server (default http://127.0.0.1:15342). Tauri's" >&2
+  echo "beforeDevCommand in apps/cockpit-desktop/src-tauri/tauri.conf.json is what" >&2
+  echo "starts that server, so this script always launches the app via" >&2
+  echo "'npm run tauri:dev'." >&2
+  echo >&2
+  echo "Do NOT run the compiled binary directly (e.g." >&2
+  echo "  cargo run --bin cockpit-desktop" >&2
+  echo "  target/debug/cockpit-desktop" >&2
+  echo "). Skipping beforeDevCommand leaves the Webview connecting to a port" >&2
+  echo "nothing is listening on, so the window appears blank." >&2
+  echo >&2
+  echo "To produce a self-contained bundle that does not need Vite, run" >&2
+  echo "  npm run tauri:build" >&2
+  echo "from apps/cockpit-desktop instead." >&2
 }
 
 while (($# > 0)); do
@@ -121,6 +137,25 @@ release_dev_port
 cd apps/cockpit-desktop
 
 ensure_frontend_deps
+
+# If a previous Tauri build artefact is present but the Vite dev server is not
+# running, Tauri would still try to load the devUrl and produce a blank window.
+# Surface that condition loudly instead of waiting for the user to discover it
+# by staring at the screen.
+if [[ ! -d node_modules/.vite ]] \
+    && [[ ! -f node_modules/vite/bin/vite.js ]] \
+    && [[ ! -d ../dist ]]; then
+  echo "No built frontend (apps/cockpit-desktop/dist) and no Vite dev cache found." >&2
+  echo "Proceeding will start Vite for the first time, which can take a while." >&2
+fi
+
+if [[ -d ../dist ]] && [[ -z "$(port_pids_listening)" ]]; then
+  # A built frontend exists but Vite is not running: launching tauri:dev will
+  # rebuild the dist on the fly. That is fine, but make it visible so the
+  # blank window during rebuild is not mistaken for a regression.
+  echo "Detected existing apps/cockpit-desktop/dist without a running Vite server." >&2
+  echo "tauri:dev will reuse or rebuild that bundle before the Webview connects." >&2
+fi
 
 echo "Starting Cockpit Desktop on port $DEV_PORT"
 npm run tauri:dev

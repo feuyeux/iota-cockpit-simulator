@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="font-medium">组件错误 / Component error</div>
             <div className="text-red-100">{this.state.error?.message ?? "未知错误 / Unknown error"}</div>
             <button
-              className="mt-2 border border-red-500/40 px-2 py-1 text-xs hover:bg-red-950/50"
+              className="mt-2 flex h-[26px] items-center rounded border border-red-500/40 px-2 text-xs hover:bg-red-950/50"
               onClick={() => this.setState({ hasError: false, error: undefined })}
             >
               重置 / Reset

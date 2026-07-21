@@ -138,10 +138,10 @@ export function SimulationActivityFeed({ model, dispatch }: Props) {
   }
 
   return (
-    <section className="flex h-full min-w-0 flex-col overflow-hidden border border-zinc-800 bg-zinc-900/70">
-      <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-3 py-2 text-sm font-medium">
+    <section className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-zinc-800/90 bg-zinc-900/60 backdrop-blur-md shadow-sm">
+      <div className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-900/80 px-3.5 py-2 text-xs font-semibold text-zinc-100">
         <div className="flex items-center gap-2">
-          <span>{t("activity")}</span>
+          <span className="tracking-wide">{t("activity")}</span>
           {pendingCount > 0 && (
             <span className="flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold text-zinc-950">
               {pendingCount} {t("awaitingApproval")}
@@ -153,7 +153,7 @@ export function SimulationActivityFeed({ model, dispatch }: Props) {
             <div className="flex items-center gap-1 text-xs text-zinc-400">
               <button
                 aria-label={t("previousPage")}
-                className="control-button h-6 w-6 disabled:opacity-30"
+                className="control-button h-[26px] w-[26px] disabled:opacity-30"
                 disabled={page === 0}
                 onClick={() => setPage(page - 1)}
               >
@@ -164,7 +164,7 @@ export function SimulationActivityFeed({ model, dispatch }: Props) {
               </span>
               <button
                 aria-label={t("nextPage")}
-                className="control-button h-6 w-6 disabled:opacity-30"
+                className="control-button h-[26px] w-[26px] disabled:opacity-30"
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage(page + 1)}
               >
@@ -176,7 +176,7 @@ export function SimulationActivityFeed({ model, dispatch }: Props) {
             <div className="relative">
               <button
                 aria-label={t("exportActivity")}
-                className="control-button h-6 w-6"
+                className="control-button h-[26px] w-[26px]"
                 onClick={() => setShowExportMenu(!showExportMenu)}
               >
                 <Download className="h-3 w-3" />
@@ -303,7 +303,7 @@ export function SimulationActivityFeed({ model, dispatch }: Props) {
                         <span className="text-[11px] font-medium text-amber-300">{t("pendingApproval")}</span>
                         <button
                           aria-label={t("approveAction")}
-                          className="control-button h-6 w-6"
+                          className="control-button h-[26px] w-[26px]"
                           title={t("approveAction")}
                           onClick={() => void resolve(requestId, "approve")}
                         >
@@ -311,7 +311,7 @@ export function SimulationActivityFeed({ model, dispatch }: Props) {
                         </button>
                         <button
                           aria-label={t("rejectAction")}
-                          className="control-button h-6 w-6"
+                          className="control-button h-[26px] w-[26px]"
                           title={t("rejectAction")}
                           onClick={() => void resolve(requestId, "reject")}
                         >
@@ -319,7 +319,7 @@ export function SimulationActivityFeed({ model, dispatch }: Props) {
                         </button>
                         <button
                           aria-label={t("cancelPending")}
-                          className="control-button h-6 w-6"
+                          className="control-button h-[26px] w-[26px]"
                           title={t("cancelPending")}
                           onClick={() => void cancelPending()}
                         >

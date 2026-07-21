@@ -18,7 +18,7 @@ use crate::{LocalMcpServer, ToolDefinition, ToolRequest, ToolResponse, redact_js
 
 pub const NATIVE_MCP_PROTOCOL_VERSION: u16 = 1;
 pub const DEFAULT_NATIVE_TOOL_COST_BUDGET: u32 = 16;
-/// Eight simulation operations plus an initial and one corrected decision envelope.
+/// The maximum native MCP calls permitted during one human turn.
 pub const DEFAULT_NATIVE_TOOL_CALL_BUDGET: usize = 10;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -256,6 +256,7 @@ mod windows_private_state {
     }
 }
 
+#[cfg(windows)]
 fn is_owner_only_windows_sddl(sddl: &str) -> bool {
     let owner_ace = sddl.contains("(A;;FA;;;OW)")
         || sddl.contains("(A;;FA;;;S-1-3-4)")
@@ -578,6 +579,7 @@ fn rpc_error(id: Value, code: i64, message: &str) -> Value {
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
     #[test]
     fn windows_sddl_accepts_only_one_protected_owner_rights_ace() {
         assert!(is_owner_only_windows_sddl("D:P(A;;FA;;;OW)"));
@@ -621,9 +623,10 @@ mod tests {
         .expect("scenario loads");
         let mut simulation = Simulation::new("native-contract-run", scenario);
         simulation.start().expect("simulation starts");
-        let state_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!(
-            "../../.native-mcp-test-{}.json",
-            std::process::id()
+        let state_path = std::env::temp_dir().join(format!(
+            "cockpit-native-mcp-test-{}-{}.json",
+            std::process::id(),
+            unix_time_ms()
         ));
         let state = NativeMcpTurnState::new(
             "generation-1".to_string(),
@@ -648,7 +651,27 @@ mod tests {
             &state_path,
             &json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }),
         );
-        assert_eq!(listed["result"]["tools"].as_array().map(Vec::len), Some(9));
+        let mut listed_names = listed["result"]["tools"]
+            .as_array()
+            .expect("tools/list returns an array")
+            .iter()
+            .filter_map(|tool| tool["name"].as_str())
+            .collect::<Vec<_>>();
+        listed_names.sort_unstable();
+        let mut expected_names = vec![
+            crate::TOOL_ADD_GOAL,
+            crate::TOOL_GET_ACTION_RESULT,
+            crate::TOOL_GET_OBSERVATION,
+            crate::TOOL_GET_RUN_STATUS,
+            crate::TOOL_GET_TURN_CONTEXT,
+            crate::TOOL_INSPECT_SENSOR_QUALITY,
+            crate::TOOL_LIST_VISIBLE_ENTITIES,
+            crate::TOOL_REQUEST_ACTION,
+            crate::TOOL_SUBMIT_DECISION,
+            crate::TOOL_WAIT_UNTIL,
+        ];
+        expected_names.sort_unstable();
+        assert_eq!(listed_names, expected_names);
 
         let called = handle_request(
             &state_path,

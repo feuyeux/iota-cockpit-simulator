@@ -6,8 +6,7 @@ import {
   Pause,
   Play,
   SkipForward,
-  Square,
-  Upload
+  Square
 } from "lucide-react";
 import { APP_CONFIG, KEYBOARD_SHORTCUTS } from "../config/constants";
 import { useSimulator } from "../hooks/useSimulator";
@@ -20,13 +19,14 @@ import {
   canStop,
   type SimulationAction
 } from "../state/simulationReducer";
-import type { RecordingDiff, SimulationModel } from "../types/simulation";
+import type { EvaluationReportRecord, RecordingDiff, SimulationModel } from "../types/simulation";
 import { BENCHMARK_SCENARIOS, COCKPIT_DOMAINS, localize } from "../config/scenarioCatalog";
 import { useI18n } from "../i18n";
 
 interface Props {
   model: SimulationModel;
   dispatch: React.Dispatch<SimulationAction>;
+  onEvaluationCompleted?: (report: EvaluationReportRecord) => void;
 }
 
 type SourceMode = "live" | "replay";
@@ -83,7 +83,7 @@ function DiffSummary({ report }: { report: RecordingDiff }) {
   );
 }
 
-export function SimulationSourcePanel({ model, dispatch }: Props) {
+export function SimulationSourcePanel({ model, dispatch, onEvaluationCompleted }: Props) {
   const { locale, t } = useI18n();
   const { syncEvents, runCommand } = useSimulator(model, dispatch);
   const [mode, setMode] = useState<SourceMode>("live");
@@ -126,11 +126,11 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [model, runCommand, liveTurnInFlight, autoRunInFlight]);
 
-  async function loadScenario(path: string): Promise<boolean> {
+  async function loadScenario(path: string): Promise<{ scenario: Awaited<ReturnType<typeof simulatorClient.validateScenario>>; runId: string } | undefined> {
     // State updates do not take effect until React's next render. Keep a ref
     // lock as well so rapid clicks cannot enqueue multiple expensive Hermes
     // warm-ups before the Load button becomes disabled.
-    if (scenarioLoadLock.current) return false;
+    if (scenarioLoadLock.current) return undefined;
     scenarioLoadLock.current = true;
     setScenarioLoadInFlight(true);
     dispatch({ type: "scenarioLoading" });
@@ -147,7 +147,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
             correlationId: "desktop-scenario-validation"
           }
         });
-        return false;
+        return undefined;
       }
       dispatch({ type: "runCreating" });
       const live = await simulatorClient.createLiveRun(path, modelTimeoutMs);
@@ -157,7 +157,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
         runId: live.runId,
         backend: live.backend
       });
-      return true;
+      return { scenario, runId: live.runId };
     } finally {
       scenarioLoadLock.current = false;
       setScenarioLoadInFlight(false);
@@ -192,6 +192,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
       cursor = initialBatch.nextCursor;
       const maxTicks = selectedScenario?.deadlineTick ?? 20;
 
+      let terminalStatus = "";
       for (let index = 0; index < maxTicks && !autoRunCancelled.current; index += 1) {
         const result = await simulatorClient.stepLive();
         const status = typeof result === "object" && result !== null && "status" in result
@@ -209,8 +210,15 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
           dispatch({ type: "snapshotUpdated", snapshot, cursor: batch.nextCursor });
         }
         cursor = batch.nextCursor;
-        if (["completed", "stopped", "failed"].includes(status)) break;
+        if (["completed", "stopped", "failed"].includes(status)) {
+          terminalStatus = status;
+          break;
+        }
         await new Promise((resolve) => window.setTimeout(resolve, APP_CONFIG.AUTO_RUN_EVENT_POLL_INTERVAL_MS));
+      }
+      if (!autoRunCancelled.current && !["failed", "stopped"].includes(terminalStatus)) {
+        const report = await simulatorClient.evaluateRun(loaded.runId, loaded.scenario.id);
+        onEvaluationCompleted?.(report);
       }
     } catch (error) {
       try {
@@ -249,7 +257,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
     const path = await simulatorClient.openScenarioFilePicker();
     if (path) {
       setScenarioPath(path);
-      await runCommand(() => loadScenario(path));
+      await runCommand(async () => { await loadScenario(path); });
     }
   }
 
@@ -282,16 +290,16 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
   }
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-col overflow-hidden border border-zinc-800 bg-zinc-900/70">
-      <div className="flex shrink-0 border-b border-zinc-800 text-sm font-medium">
+    <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-zinc-800/90 bg-zinc-900/60 backdrop-blur-md shadow-sm">
+      <div className="flex shrink-0 border-b border-zinc-800/80 bg-zinc-900/80 text-xs font-semibold">
         <button
-          className={`flex-1 px-3 py-2 ${mode === "live" ? "border-b-2 border-cyan-400 text-cyan-200" : "text-zinc-500 hover:text-zinc-300"}`}
+          className={`flex-1 h-[26px] transition-colors duration-150 ${mode === "live" ? "border-b-2 border-cyan-400 text-cyan-200" : "text-zinc-400 hover:text-zinc-200"}`}
           onClick={() => setMode("live")}
         >
           {t("liveRun")}
         </button>
         <button
-          className={`flex-1 px-3 py-2 ${mode === "replay" ? "border-b-2 border-cyan-400 text-cyan-200" : "text-zinc-500 hover:text-zinc-300"}`}
+          className={`flex-1 h-[26px] transition-colors duration-150 ${mode === "replay" ? "border-b-2 border-cyan-400 text-cyan-200" : "text-zinc-400 hover:text-zinc-200"}`}
           onClick={() => setMode("replay")}
         >
           {t("replay")}
@@ -299,34 +307,12 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
       </div>
 
       {mode === "live" ? (
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-          <div className="border border-cyan-700/50 bg-cyan-950/20 p-2.5 text-xs">
-            <p className="leading-4 text-cyan-100/80">{t("modelDriveNotice")}</p>
-            <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-zinc-500">
-              <span>{t("backend")}</span>
-              <code className="truncate text-zinc-300">{model.backend ?? t("backendPending")}</code>
-            </div>
-            <label className="mt-2 flex items-center justify-between gap-2 text-[10px] text-zinc-500">
-              <span>{t("modelTimeout")}</span>
-              <input
-                className="h-7 w-24 border border-zinc-700 bg-zinc-950 px-2 text-right text-xs text-zinc-100 disabled:opacity-40"
-                disabled={timeoutLocked}
-                min={2_000}
-                max={120_000}
-                step={1_000}
-                type="number"
-                value={modelTimeoutMs}
-                onChange={(event) => setModelTimeoutMs(Number(event.target.value))}
-              />
-            </label>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-300" htmlFor="benchmark-scenario">
-              {t("stepChooseScenario")}
-            </label>
+        <div className="flex min-h-0 flex-1 flex-col space-y-2.5 overflow-hidden p-2.5">
+          {/* Dropdown & Custom Scenario Selector */}
+          <div className="space-y-1.5 shrink-0">
             <select
               id="benchmark-scenario"
-              className="h-9 w-full border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
+              className="h-[26px] w-full rounded border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100 focus:border-cyan-500 font-medium py-0"
               title={selectedScenario ? localize(selectedScenario.title, locale) : t("customScenario")}
               value={selectedScenario?.id ?? "custom"}
               onChange={(event) => {
@@ -341,38 +327,71 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
               ))}
               {!selectedScenario ? <option value="custom">{t("customScenario")}</option> : null}
             </select>
-            <p className="mt-1 text-[10px] leading-4 text-zinc-500">{t("chooseScenario")}</p>
-            <div className="mt-3 space-y-2">
+
+            <div className="flex gap-1.5">
+              <input
+                aria-label={t("scenarioPath")}
+                className="h-[26px] min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
+                placeholder={t("scenarioPath")}
+                value={scenarioPath}
+                onChange={(event) => setScenarioPath(event.target.value)}
+              />
               <button
-                className="flex w-full items-center gap-3 border border-cyan-600 bg-cyan-950/60 px-3 py-2.5 text-left text-cyan-50 transition hover:bg-cyan-900/60 disabled:opacity-40"
-                disabled={liveTurnInFlight || autoRunInFlight || scenarioLoadInFlight}
-                onClick={() => runCommand(() => loadScenario(scenarioPath))}
+                aria-label={t("browseScenario")}
+                className="control-button h-[26px] w-[26px] rounded shrink-0"
+                disabled={scenarioLoadInFlight}
+                onClick={() => void browseScenario()}
               >
-                <Upload className="h-4 w-4 shrink-0 text-cyan-300" />
-                <span className="min-w-0"><span className="block text-sm font-medium">{t("stepLoadScenario")}</span><span className="block text-[10px] text-cyan-200/70">{t("stepLoadScenarioDetail")}</span></span>
+                <FolderOpen className="h-3.5 w-3.5" />
               </button>
-              <button
-                aria-label={t("autoRun")}
-                className="flex w-full items-center gap-3 border border-emerald-500 bg-emerald-950/50 px-3 py-2.5 text-left text-emerald-50 transition hover:bg-emerald-900/50 disabled:opacity-40"
-                disabled={!model.serviceConnected || liveTurnInFlight || autoRunInFlight || scenarioLoadInFlight}
-                onClick={() => void autoRunScenario()}
-              >
-                <FastForward className="h-4 w-4 shrink-0 text-emerald-300" />
-                <span className="min-w-0"><span className="block text-sm font-medium">{t("stepRunAndEvaluate")}</span><span className="block text-[10px] text-emerald-200/70">{t("stepRunAndEvaluateDetail")}</span></span>
-              </button>
-            </div>
-            <div className="mt-3 border-t border-zinc-800 pt-2">
-              <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500">{t("useForCloseInspection")}</div>
-              <div className="grid grid-cols-4 gap-2">
-                <button aria-label={t("start")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canStart(model)} onClick={() => runCommand(simulatorClient.start)}><Play className="h-3.5 w-3.5" />{t("start")}</button>
-                <button aria-label={t("step")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canStep(model) || liveTurnInFlight} onClick={() => void stepOnce()}><SkipForward className="h-3.5 w-3.5" />{t("step")}</button>
-                <button aria-label={t("pause")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!canPause(model) || liveTurnInFlight} onClick={() => runCommand(simulatorClient.pause)}><Pause className="h-3.5 w-3.5" />{t("pause")}</button>
-                <button aria-label={t("stop")} className="control-button h-9 flex-col gap-0.5 text-[10px]" disabled={!model.serviceConnected || (!canStop(model) && !liveTurnInFlight && !autoRunInFlight)} onClick={() => void stopRun()}><Square className="h-3.5 w-3.5" />{t("stop")}</button>
-              </div>
             </div>
           </div>
+
+          {/* Primary Action Button: 仿真评测 */}
+          <button
+            aria-label="一键运行"
+            className="flex h-[26px] w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-emerald-500/80 bg-emerald-950/70 px-2.5 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-900/80 disabled:opacity-40 shadow-xs"
+            disabled={!model.serviceConnected || liveTurnInFlight || autoRunInFlight || scenarioLoadInFlight}
+            onClick={() => void autoRunScenario()}
+          >
+            <FastForward className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
+            <span className="tracking-wide">{t("autoRun")}</span>
+          </button>
+
+          {/* Manual Inspection Controls */}
+          <div className="shrink-0 border-t border-zinc-800/80 pt-1.5">
+            <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">{t("useForCloseInspection")}</div>
+            <div className="grid grid-cols-4 gap-1.5">
+              <button aria-label={t("start")} className="control-button h-[26px] flex-row gap-1 rounded text-[11px]" disabled={!canStart(model)} onClick={() => runCommand(simulatorClient.start)}><Play className="h-3 w-3" />{t("start")}</button>
+              <button aria-label={t("step")} className="control-button h-[26px] flex-row gap-1 rounded text-[11px]" disabled={!canStep(model) || liveTurnInFlight} onClick={() => void stepOnce()}><SkipForward className="h-3 w-3" />{t("step")}</button>
+              <button aria-label={t("pause")} className="control-button h-[26px] flex-row gap-1 rounded text-[11px]" disabled={!canPause(model) || liveTurnInFlight} onClick={() => runCommand(simulatorClient.pause)}><Pause className="h-3 w-3" />{t("pause")}</button>
+              <button aria-label={t("stop")} className="control-button h-[26px] flex-row gap-1 rounded text-[11px]" disabled={!model.serviceConnected || (!canStop(model) && !liveTurnInFlight && !autoRunInFlight)} onClick={() => void stopRun()}><Square className="h-3 w-3" />{t("stop")}</button>
+            </div>
+          </div>
+
+          {/* Model Drive & Timeout Config */}
+          <div className="shrink-0 rounded border border-zinc-800/80 bg-zinc-950/40 p-2 text-[10px]">
+            <div className="flex items-center justify-between text-zinc-400">
+              <span>{t("backend")}: <code className="font-mono text-zinc-200">{model.backend ?? t("backendPending")}</code></span>
+              <label className="flex items-center gap-1.5">
+                <span>{t("modelTimeout")}</span>
+                <input
+                  className="h-6 w-20 rounded border border-zinc-700 bg-zinc-950 px-1 text-right text-xs text-zinc-100 disabled:opacity-40"
+                  disabled={timeoutLocked}
+                  min={2_000}
+                  max={120_000}
+                  step={1_000}
+                  type="number"
+                  value={modelTimeoutMs}
+                  onChange={(event) => setModelTimeoutMs(Number(event.target.value))}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Scenario Details (Expands to fill remaining height) */}
           {selectedScenario ? (
-            <div className="max-h-64 space-y-2 overflow-y-auto border border-zinc-800 bg-zinc-950/60 p-2.5 text-xs [overflow-wrap:anywhere]">
+            <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto rounded border border-zinc-800 bg-zinc-950/60 p-3 text-xs [overflow-wrap:anywhere]">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="text-[10px] uppercase text-zinc-500">{t("domain")}</div>
@@ -398,7 +417,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
                 <div className="mb-1 text-zinc-500">{t("coverage")}</div>
                 <div className="flex flex-wrap gap-1">
                   {selectedScenario.coverage.map((item) => (
-                    <span key={localize(item, locale)} className="border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-300">
+                    <span key={localize(item, locale)} className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-300">
                       {localize(item, locale)}
                     </span>
                   ))}
@@ -434,7 +453,7 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
                     return (
                       <div
                         key={domain.id}
-                        className={`flex min-h-7 items-center justify-between gap-1 border px-1.5 py-1 text-[9px] leading-3 ${active ? "border-cyan-700/70 bg-cyan-950/30 text-cyan-100" : "border-zinc-800 text-zinc-600"}`}
+                        className={`flex min-h-7 items-center justify-between gap-1 rounded border px-1.5 py-1 text-[9px] leading-3 ${active ? "border-cyan-700/70 bg-cyan-950/30 text-cyan-100" : "border-zinc-800 text-zinc-600"}`}
                         title={`${scenarioCount} ${t("scenariosUnit")}`}
                       >
                         <span>{localize(domain.label, locale)}</span>
@@ -446,93 +465,69 @@ export function SimulationSourcePanel({ model, dispatch }: Props) {
               </div>
             </div>
           ) : null}
-          <div className="flex gap-2">
-            <input
-              aria-label={t("scenarioPath")}
-              className="h-8 min-w-0 flex-1 border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
-              placeholder={t("scenarioPath")}
-              value={scenarioPath}
-              onChange={(event) => setScenarioPath(event.target.value)}
-            />
-            <button
-              aria-label={t("browseScenario")}
-              className="control-button h-8 w-8"
-              disabled={scenarioLoadInFlight}
-              onClick={() => void browseScenario()}
-            >
-              <FolderOpen className="h-3 w-3" />
-            </button>
-          </div>
+
           {liveTurnInFlight ? (
-            <div className="flex items-center gap-2 border border-violet-700/50 bg-violet-950/20 px-2 py-1.5 text-[10px] text-violet-200">
+            <div className="flex items-center gap-2 rounded border border-violet-700/50 bg-violet-950/20 px-2 py-1.5 text-[10px] text-violet-200">
               <span className="h-2 w-2 animate-pulse rounded-full bg-violet-300" />
               {t("turnInFlight")}
             </div>
           ) : null}
           {autoRunInFlight ? (
-            <div className="flex items-center gap-2 border border-cyan-700/50 bg-cyan-950/20 px-2 py-1.5 text-[10px] text-cyan-200">
+            <div className="flex items-center gap-2 rounded border border-cyan-700/50 bg-cyan-950/20 px-2 py-1.5 text-[10px] text-cyan-200">
               <FastForward className="h-3 w-3 animate-pulse" />
               {t("autoRun")}
             </div>
           ) : null}
-          <dl className="grid grid-cols-2 gap-2 text-xs text-zinc-300">
-            <dt>{t("seed")}</dt>
-            <dd className="text-right">{model.scenario?.seed ?? "-"}</dd>
-            <dt>{t("schema")}</dt>
-            <dd className="text-right">{model.scenario?.schemaVersion ?? "-"}</dd>
-            <dt>{t("hash")}</dt>
-            <dd className="truncate text-right">{model.scenario?.scenarioHash ?? "-"}</dd>
-          </dl>
         </div>
       ) : (
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             <input
               aria-label={t("recordingPath")}
-              className="h-8 flex-1 border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
+              className="h-[26px] flex-1 rounded border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
               placeholder={t("recordingPath")}
               value={recordingPath}
               onChange={(event) => setRecordingPath(event.target.value)}
             />
             <button
               aria-label={t("browseRecording")}
-              className="control-button h-8 w-8"
+              className="control-button h-[26px] w-[26px] rounded"
               onClick={() => void browseRecording("source")}
             >
               <FolderOpen className="h-3 w-3" />
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             <button
               aria-label={t("replayRecording")}
-              className="control-button"
+              className="control-button h-[26px] rounded"
               disabled={!model.scenario || !recordingPath}
               onClick={() => void replay()}
               title={t("replayRecording")}
             >
-              <Play className="h-4 w-4" />
+              <Play className="h-3.5 w-3.5" />
             </button>
             <button
               aria-label={t("compareRecordings")}
-              className="control-button"
+              className="control-button h-[26px] rounded"
               disabled={!recordingPath || !candidatePath}
               onClick={() => void compare()}
               title={t("compareRecordings")}
             >
-              <GitCompareArrows className="h-4 w-4" />
+              <GitCompareArrows className="h-3.5 w-3.5" />
             </button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             <input
               aria-label={t("comparisonPath")}
-              className="h-8 flex-1 border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
+              className="h-[26px] flex-1 rounded border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100"
               placeholder={t("comparisonPath")}
               value={candidatePath}
               onChange={(event) => setCandidatePath(event.target.value)}
             />
             <button
               aria-label={t("browseRecording")}
-              className="control-button h-8 w-8"
+              className="control-button h-[26px] w-[26px] rounded"
               onClick={() => void browseRecording("candidate")}
             >
               <FolderOpen className="h-3 w-3" />

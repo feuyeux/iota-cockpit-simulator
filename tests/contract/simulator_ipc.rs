@@ -200,7 +200,8 @@ async fn simulator_live_ipc_keeps_one_backend_session_across_interactive_steps()
             .ok
     );
 
-    for expected_tick in 0..2 {
+    let expected_human_turns = [2, 0];
+    for (expected_tick, expected_turns) in (0..2).zip(expected_human_turns) {
         let stepped = handler
             .dispatch_async(request(SimulatorCommand::StepLiveSimulation))
             .await;
@@ -219,7 +220,7 @@ async fn simulator_live_ipc_keeps_one_backend_session_across_interactive_steps()
                 .as_ref()
                 .and_then(|value| value.get("humanTurns"))
                 .and_then(Value::as_u64),
-            Some(2)
+            Some(expected_turns)
         );
     }
 
@@ -260,7 +261,7 @@ async fn simulator_live_ipc_keeps_one_backend_session_across_interactive_steps()
                         && event.get("backend") == Some(&json!("synthetic"))
                 })
                 .count()
-                == 4)
+                == 2)
     );
 }
 

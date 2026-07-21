@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Cockpit Simulation",
+  "productName": "Iota Cockpit",
   "version": "0.1.2",
   "identifier": "com.feuyeux.cockpit-simulation",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Cockpit Simulation",
+        "title": "Iota Cockpit",
         "width": 1600,
         "height": 900,
         "minWidth": 1600,
@@ -21,7 +21,8 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' asset: data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:15342 ws://127.0.0.1:15342",
+      "devCsp": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' asset: data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:15342 ws://127.0.0.1:15342",
       "capabilities": [
         "default"
       ]
