@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useState } from "react";
-import { Activity, AlertTriangle, Bot, Gauge, Link, Link2Off, HelpCircle } from "lucide-react";
+import { Activity, AlertTriangle, Bot, Gauge, Link, Link2Off, HelpCircle, Moon, Sun } from "lucide-react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { KeyboardShortcutsHelp } from "./components/KeyboardShortcutsHelp";
 import { SimulationEvaluation } from "./components/SimulationEvaluation";
@@ -15,6 +15,7 @@ import { initialSimulationModel, simulationReducer } from "./state/simulationRed
 import { exponentialBackoff } from "./utils/reconnect";
 import { loadPersistedSession } from "./utils/storage";
 import { useI18n, type MessageKey } from "./i18n";
+import { useTheme } from "./theme";
 import type { EvaluationReportRecord, SimulationModel } from "./types/simulation";
 import packageInfo from "../package.json";
 
@@ -33,6 +34,7 @@ const stateLabels: Partial<Record<SimulationModel["state"], MessageKey>> = {
 
 export function App() {
   const { locale, setLocale, t } = useI18n();
+  const { theme, toggleTheme } = useTheme();
   const persisted = loadPersistedSession();
   const [model, dispatch] = useReducer(
     simulationReducer,
@@ -189,6 +191,15 @@ export function App() {
               EN
             </button>
           </div>
+          <button
+            aria-label={theme === "dark" ? t("lightTheme") : t("darkTheme")}
+            aria-pressed={theme === "light"}
+            className="control-button h-[26px] w-[26px] shrink-0 rounded-md transition-colors duration-150"
+            onClick={toggleTheme}
+            title={t("theme")}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
           <button
             aria-label={showInsights ? t("close") : t("evaluation")}
             aria-pressed={showInsights}

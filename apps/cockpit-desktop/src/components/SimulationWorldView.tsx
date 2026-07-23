@@ -111,7 +111,17 @@ function CurrentStepSummary({ model, completedReport }: { model: SimulationModel
           <div><span className="text-zinc-500">{t("simulatedSituation")}：</span><span className="text-zinc-200">{localize(scenario.title, locale)}。{localize(scenario.trigger, locale)}</span></div>
           <div><span className="text-zinc-500">{t("systemResponse")}：</span><span className="text-zinc-200">{action ? `${capabilityLabel(action.request.capabilityId, locale)} → ${action.request.target}` : `${commandLabel(scenario.command, locale)} → ${scenario.target}`}</span></div>
           <div><span className="text-zinc-500">{t("evaluationQuestion")}：</span><span className="text-zinc-200">{localize(scenario.evaluationObjective, locale)}</span></div>
-          <div><span className="text-zinc-500">{t("passReason")}：</span><span className="text-emerald-100">{report ? `${evidenceLabel}${evidenceTick !== undefined ? ` 在 t${evidenceTick} 出现（截止 t${scenario.deadlineTick}）。` : "。"}${evaluationExplanation(report.explanation, locale)}` : t("evaluationPending")}</span></div>
+          <div><span className="text-zinc-500">{t("passReason")}：</span><span className="text-emerald-100">{report
+            ? (evidenceTick !== undefined
+                ? t("passReasonWithTick")
+                    .replace("{event}", evidenceLabel)
+                    .replace("{tick}", String(evidenceTick))
+                    .replace("{deadline}", String(scenario.deadlineTick))
+                    .replace("{explanation}", evaluationExplanation(report.explanation, locale))
+                : t("passReasonWithoutTick")
+                    .replace("{event}", evidenceLabel)
+                    .replace("{explanation}", evaluationExplanation(report.explanation, locale)))
+            : t("evaluationPending")}</span></div>
         </div>
       </section>
     );

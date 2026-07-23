@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "./App";
 import { I18nProvider } from "./i18n";
+import { ThemeProvider } from "./theme";
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
@@ -13,9 +14,11 @@ function render() {
   root = createRoot(container);
   act(() => {
     root!.render(
-      <I18nProvider>
-        <App />
-      </I18nProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <App />
+        </I18nProvider>
+      </ThemeProvider>
     );
   });
   return container;

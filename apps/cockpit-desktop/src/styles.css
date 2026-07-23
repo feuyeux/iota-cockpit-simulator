@@ -9,6 +9,133 @@
   --world-font-size: clamp(14px, 0.92vw, 15.5px);
   --world-small-font-size: clamp(12.5px, 0.82vw, 13.5px);
   --world-micro-font-size: clamp(11.5px, 0.75vw, 12px);
+  --scrollbar-track: rgba(24, 24, 27, 0.4);
+  --scrollbar-thumb: rgba(63, 63, 70, 0.5);
+  --scrollbar-thumb-hover: rgba(113, 113, 122, 0.8);
+}
+
+/*
+ * Light theme: every Tailwind utility in this app (bg-zinc-950,
+ * text-cyan-300, border-emerald-900/60, ...) resolves through Tailwind v4's
+ * `--color-<name>-<shade>` custom properties. Re-declaring those properties
+ * here, mirrored around the middle of each 50-950 scale (50<->950, 100<->900,
+ * ...), flips every component that already uses the dark-mode palette to a
+ * light-mode-appropriate shade without editing any component file.
+ */
+.theme-light {
+  color-scheme: light;
+
+  --color-zinc-50: #09090b;
+  --color-zinc-100: #18181b;
+  --color-zinc-200: #27272a;
+  --color-zinc-300: #3f3f46;
+  --color-zinc-400: #52525b;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #a1a1aa;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-900: #f4f4f5;
+  --color-zinc-950: #fafafa;
+
+  --color-cyan-50: #083344;
+  --color-cyan-100: #164e63;
+  --color-cyan-200: #155e75;
+  --color-cyan-300: #0e7490;
+  --color-cyan-400: #0891b2;
+  --color-cyan-500: #06b6d4;
+  --color-cyan-600: #22d3ee;
+  --color-cyan-700: #67e8f9;
+  --color-cyan-800: #a5f3fc;
+  --color-cyan-900: #cffafe;
+  --color-cyan-950: #ecfeff;
+
+  --color-emerald-50: #022c22;
+  --color-emerald-100: #064e3b;
+  --color-emerald-200: #065f46;
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #34d399;
+  --color-emerald-700: #6ee7b7;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-900: #d1fae5;
+  --color-emerald-950: #ecfdf5;
+
+  --color-amber-50: #451a03;
+  --color-amber-100: #78350f;
+  --color-amber-200: #92400e;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+  --color-amber-950: #fffbeb;
+
+  --color-violet-50: #2e1065;
+  --color-violet-100: #4c1d95;
+  --color-violet-200: #5b21b6;
+  --color-violet-300: #6d28d9;
+  --color-violet-400: #7c3aed;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #a78bfa;
+  --color-violet-700: #c4b5fd;
+  --color-violet-800: #ddd6fe;
+  --color-violet-900: #ede9fe;
+  --color-violet-950: #f5f3ff;
+
+  --color-red-50: #450a0a;
+  --color-red-100: #7f1d1d;
+  --color-red-200: #991b1b;
+  --color-red-300: #b91c1c;
+  --color-red-400: #dc2626;
+  --color-red-500: #ef4444;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+  --color-red-800: #fecaca;
+  --color-red-900: #fee2e2;
+  --color-red-950: #fef2f2;
+
+  --color-rose-50: #4c0519;
+  --color-rose-100: #881337;
+  --color-rose-200: #9f1239;
+  --color-rose-300: #be123c;
+  --color-rose-400: #e11d48;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #fb7185;
+  --color-rose-700: #fda4af;
+  --color-rose-800: #fecdd3;
+  --color-rose-900: #ffe4e6;
+  --color-rose-950: #fff1f2;
+
+  --color-orange-50: #431407;
+  --color-orange-100: #7c2d12;
+  --color-orange-200: #9a3412;
+  --color-orange-300: #c2410c;
+  --color-orange-400: #ea580c;
+  --color-orange-500: #f97316;
+  --color-orange-600: #fb923c;
+  --color-orange-700: #fdba74;
+  --color-orange-800: #fed7aa;
+  --color-orange-900: #ffedd5;
+  --color-orange-950: #fff7ed;
+
+  --color-sky-50: #082f49;
+  --color-sky-100: #0c4a6e;
+  --color-sky-200: #075985;
+  --color-sky-300: #0369a1;
+  --color-sky-400: #0284c7;
+  --color-sky-500: #0ea5e9;
+  --color-sky-600: #38bdf8;
+  --color-sky-700: #7dd3fc;
+  --color-sky-800: #bae6fd;
+  --color-sky-900: #e0f2fe;
+  --color-sky-950: #f0f9ff;
+
+  --scrollbar-track: rgba(228, 228, 231, 0.6);
+  --scrollbar-thumb: rgba(161, 161, 170, 0.6);
+  --scrollbar-thumb-hover: rgba(113, 113, 122, 0.8);
 }
 
 * {
@@ -28,7 +155,8 @@ body {
   line-height: 1.5;
   letter-spacing: 0.01em;
   text-rendering: optimizeLegibility;
-  background: #09090b;
+  background: var(--color-zinc-950);
+  transition: background-color 150ms ease;
 }
 
 #root {
@@ -95,7 +223,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #67e8f9;
+  outline: 2px solid var(--color-cyan-300);
   outline-offset: 2px;
 }
 
@@ -104,9 +232,9 @@ textarea:focus-visible {
   height: 26px;
   align-items: center;
   justify-content: center;
-  border: 1px solid #3f3f46;
-  background: #18181b;
-  color: #f4f4f5;
+  border: 1px solid var(--color-zinc-700);
+  background: var(--color-zinc-900);
+  color: var(--color-zinc-100);
   border-radius: 6px;
   font-size: var(--desktop-small-font-size);
   line-height: 1;
@@ -114,8 +242,8 @@ textarea:focus-visible {
 }
 
 .control-button:not(:disabled):hover {
-  border-color: #52525b;
-  background: #27272a;
+  border-color: var(--color-zinc-600);
+  background: var(--color-zinc-800);
 }
 
 /* Custom sleek scrollbars for desktop UI */
@@ -125,15 +253,15 @@ textarea:focus-visible {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(24, 24, 27, 0.4);
+  background: var(--scrollbar-track);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(63, 63, 70, 0.5);
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(113, 113, 122, 0.8);
+  background: var(--scrollbar-thumb-hover);
 }
