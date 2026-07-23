@@ -194,7 +194,7 @@ export function App() {
           <button
             aria-label={theme === "dark" ? t("lightTheme") : t("darkTheme")}
             aria-pressed={theme === "light"}
-            className="control-button h-[26px] w-[26px] shrink-0 rounded-md transition-colors duration-150"
+            className="theme-toggle control-button h-[26px] w-[26px] shrink-0 rounded-md transition-colors duration-150"
             onClick={toggleTheme}
             title={t("theme")}
           >

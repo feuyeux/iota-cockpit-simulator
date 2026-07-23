@@ -246,6 +246,15 @@ textarea:focus-visible {
   background: var(--color-zinc-800);
 }
 
+@media (min-width: 1024px) {
+  .theme-toggle {
+    position: fixed;
+    top: 10px;
+    right: 16px;
+    z-index: 50;
+  }
+}
+
 /* Custom sleek scrollbars for desktop UI */
 ::-webkit-scrollbar {
   width: 6px;
